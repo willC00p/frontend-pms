@@ -125,6 +125,8 @@ const ParkingAssignmentPage = () => {
     
     // Component state
     const [layout, setLayout] = useState(null);
+    const [allUsers, setAllUsers] = useState([]);
+    const [allVehicles, setAllVehicles] = useState([]);
     const [selectedSlot, setSelectedSlot] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [showBackground, setShowBackground] = useState(false);
@@ -326,10 +328,33 @@ const ParkingAssignmentPage = () => {
         }
     }, [layoutId]);
 
+    // Fetch all users with vehicles for assignment autoload
+    const fetchUsersAndVehicles = useCallback(async () => {
+        try {
+            await api.initCsrf();
+            // New endpoint returns users with vehicles embedded
+            const res = await api.get('/users-with-vehicles');
+            const raw = res.data.data || res.data || [];
+            const users = Array.isArray(raw) ? raw : Object.values(raw || {});
+            setAllUsers(users);
+            // Build a flat vehicles list for any other needs
+            const flatVehicles = [];
+            users.forEach(u => {
+                if (Array.isArray(u.vehicles)) {
+                    u.vehicles.forEach(v => flatVehicles.push(v));
+                }
+            });
+            setAllVehicles(flatVehicles);
+        } catch (err) {
+            console.error('Failed to fetch users-with-vehicles for assignment autoload', err);
+        }
+    }, []);
+
     useEffect(() => {
         // Fetch both layout and assignments on mount or when layoutId changes
         if (layoutId) {
             handleRefresh();
+            fetchUsersAndVehicles();
         }
     }, [layoutId, fetchLayout, fetchAssignments]);
 
@@ -413,6 +438,8 @@ const ParkingAssignmentPage = () => {
                 ...prev,
                 parking_slot_id: slot.id
             }));
+            // preload users/vehicles if small data set
+            fetchUsersAndVehicles();
         } else {
             console.log('Form not shown because slot is occupied/reserved:', slot.space_status);
         }
@@ -625,6 +652,58 @@ const ParkingAssignmentPage = () => {
             ...prev,
             [name]: value
         }));
+    };
+
+    // When admin selects a user to autoload, populate form fields and vehicle options
+    const handleSelectUser = (userId) => {
+        const u = allUsers.find(x => String(x.id) === String(userId));
+        if (!u) return;
+        // populate fields from user
+        setFormData(prev => ({
+            ...prev,
+            name: u.name || '',
+            contact: u.contact_number || u.contact || '',
+            assignee_type: (u.role || '').toLowerCase() === 'faculty' ? 'faculty' : 'guest',
+            faculty_position: u.faculty_position || ''
+        }));
+        // vehicles are now embedded on the user object
+        const vs = Array.isArray(u.vehicles) ? u.vehicles : [];
+        // filter vehicles by compatibility with the selected slot's space type
+        const compatibleVehicles = (vs || []).filter(v => {
+            const vtype = (v.vehicle_type || v.vehicle_type || '').toLowerCase();
+            const spaceType = selectedSlot?.space_type || null;
+            return isVehicleCompatible(vtype, spaceType);
+        });
+        // If one compatible vehicle, autofill plate/type/color
+        if (compatibleVehicles.length === 1) {
+            const v = compatibleVehicles[0];
+            setFormData(prev => ({ ...prev, vehicle_plate: v.plate_number || '', vehicle_type: v.vehicle_type || '', vehicle_color: v.vehicle_color || '' }));
+        } else if (compatibleVehicles.length > 1) {
+            // clear plate and vehicle_type to let admin choose from compatible list
+            setFormData(prev => ({ ...prev, vehicle_plate: '', vehicle_type: '', vehicle_color: '', _no_compatible_user_vehicles: false }));
+        } else {
+            // no compatible vehicles for this slot
+            setFormData(prev => ({ ...prev, vehicle_plate: '', vehicle_type: '', vehicle_color: '', _no_compatible_user_vehicles: true }));
+        }
+        // store selected user vehicles (compatible) in local state for UI
+        setFormData(prev => ({ ...prev, _selected_user_vehicles: compatibleVehicles }));
+    };
+
+    const isVehicleCompatible = (vehicleType = '', spaceType = '') => {
+        if (!spaceType) return true; // unknown space type -> allow
+        const vt = (vehicleType || '').toLowerCase();
+        switch (spaceType) {
+            case 'compact':
+                return vt === 'motorcycle' || vt === 'bicycle';
+            case 'standard':
+                return vt === 'car' || vt === 'suv' || vt === 'sedan' || vt === 'van';
+            case 'handicap':
+                return vt === 'car' || vt === 'suv' || vt === 'van';
+            case 'ev':
+                return vt === 'car' || vt === 'suv' || vt === 'van';
+            default:
+                return true;
+        }
     };
 
     // Pan (drag-to-scroll) handlers
@@ -1389,7 +1468,37 @@ const ParkingAssignmentPage = () => {
 
                         <div className={styles.formGroup}>
                             <label>Vehicle Type</label>
-                                                            <select
+                            {/* Autoload user and vehicles */}
+                            <div style={{ marginBottom: 8 }}>
+                                <label>Load User (optional)</label>
+                                <select name="_user_select" onChange={(e) => handleSelectUser(e.target.value)}>
+                                    <option value="">-- Select user to autofill --</option>
+                                    {allUsers.filter(u => { const r = (u.role||'').toLowerCase(); return r !== 'admin' && r !== 'guard' && r !== 'student'; }).map(u => (
+                                        <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* If a user was selected and they have multiple vehicles, show a vehicle selector */}
+                            {Array.isArray(formData._selected_user_vehicles) && formData._selected_user_vehicles.length > 1 && (
+                                <div className={styles.formGroup}>
+                                    <label>Select Vehicle</label>
+                                    <select name="_selected_vehicle" onChange={(e) => {
+                                        const vid = e.target.value;
+                                        const sel = (formData._selected_user_vehicles || []).find(x => String(x.id) === String(vid));
+                                        if (sel) {
+                                            setFormData(prev => ({ ...prev, vehicle_plate: sel.plate_number || '', vehicle_type: sel.vehicle_type || '', vehicle_color: sel.vehicle_color || '' }));
+                                        }
+                                    }}>
+                                        <option value="">-- choose vehicle --</option>
+                                        {formData._selected_user_vehicles.map(v => (
+                                            <option key={v.id} value={v.id}>{v.plate_number} - {v.vehicle_type || 'Unknown'}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <select
                                 name="vehicle_type"
                                 value={formData.vehicle_type}
                                 onChange={handleInputChange}

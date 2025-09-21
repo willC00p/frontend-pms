@@ -3,22 +3,37 @@
   display: flex;
   min-height: 100vh;
   width: 100vw;
+  /* ensure content doesn't sit under fixed sidebar */
+  padding-left: 250px;
 }
 
 .sidebar {
   background-color: #c04a4a;
   width: 250px;
   min-width: 250px;
-  min-height: 900px;
-  height: auto;
+  height: 100vh;
   color: white;
   padding: 20px;
   font-family: 'Poppins', sans-serif;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  position: static;
-  z-index: 1;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: relative;
+    height: auto;
+    width: 100%;
+    min-width: 0;
+  }
+  .main-app-container {
+    padding-left: 0;
+  }
 }
 
 .sidebar-logo {

@@ -1,141 +1,218 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; 
-import 'assets/userlist.css';
-
-const userData = [
-  {
-    name: 'Juan Dela Cruz',
-    studentno: '2026100837',
-    phonenumber: '09842751837',
-    department: 'College of Nursing',
-    position: 'Student',
-    vehicletype: 'SUV',
-    platenumber: 'HWB 2389',
-  },
-  {
-    name: 'Sanya Lopez',
-    studentno: '2026100839',
-    phonenumber: '09998887777',
-    department: 'College of Science',
-    position: 'Faculty',
-    vehicletype: 'SUV',
-    platenumber: 'ABC 1234',
-  },
-  {
-    name: 'Kayden Reyes',
-    studentno: '2026937163',
-    phonenumber: '09775556666',
-    department: 'Admin Office',
-    position: 'Personnel',
-    vehicletype: 'Motorcycle',
-    platenumber: 'XYZ 9999',
-  },
-  {
-    name: 'Duchess Sison',
-    studentno: '2026184726',
-    phonenumber: '09123456789',
-    department: 'Security',
-    position: 'Guard',
-    vehicletype: 'SUV',
-    platenumber: 'WHD 8394',
-  }
-];
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../utils/api';
+import Modal from 'components/Modal';
+import AdminCreateUser from './AdminCreateUser';
+import VehicleModal from 'components/VehicleModal';
+import VehicleListModal from 'components/VehicleListModal';
+import EditUserModal from 'components/EditUserModal';
+import {
+  Box,
+  Button,
+  IconButton,
+  Input,
+  Select,
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Heading,
+  HStack,
+  VStack,
+  Spinner,
+  Link,
+  Tag,
+  Wrap,
+  WrapItem,
+} from '@chakra-ui/react';
+import { FiFileText, FiDownload, FiPlus, FiEye } from 'react-icons/fi';
+import { FaUser, FaChalkboardTeacher, FaBriefcase, FaShieldAlt } from 'react-icons/fa';
 
 const UserList = () => {
+  const [users, setUsers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('newest');
-  const [activeRole, setActiveRole] = useState('Student');
+  const [loading, setLoading] = useState(true);
+  const [activeRole, setActiveRole] = useState('All');
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [vehicleModalUser, setVehicleModalUser] = useState(null);
+  const [vehicleListUser, setVehicleListUser] = useState(null);
+  const [editUser, setEditUser] = useState(null);
 
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
 
-  const roleCount = {
-    Student: 0,
-    Faculty: 0,
-    Personnel: 0,
-    Guard: 0,
-  };
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    Promise.all([api.get('/users'), api.get('/vehicles')])
+      .then(([uRes, vRes]) => {
+        if (!mounted) return;
+        setUsers(uRes.data.data || uRes.data || []);
+        setVehicles(vRes.data.data || vRes.data || []);
+      })
+      .catch(err => {
+        console.error('Failed to load users or vehicles', err);
+      })
+      .finally(() => mounted && setLoading(false));
 
-  userData.forEach(user => {
-    if (roleCount[user.position] !== undefined) {
-      roleCount[user.position]++;
-    }
+    return () => { mounted = false; };
+  }, [refreshKey]);
+
+  // Map user_id -> plate numbers from vehicles
+  const platesByUser = vehicles.reduce((acc, v) => {
+    const uid = String(v.user_id);
+    if (!acc[uid]) acc[uid] = [];
+    if (v.plate_number && !acc[uid].includes(v.plate_number)) acc[uid].push(v.plate_number);
+    return acc;
+  }, {});
+
+  const filtered = users.filter(u => {
+    // hide Admins from the list and allow role filter
+    if ((u.role || '').toLowerCase() === 'admin') return false;
+    if (activeRole !== 'All' && activeRole !== (u.role || '')) return false;
+    return (u.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (u.email || '').toLowerCase().includes(search.toLowerCase());
   });
 
-  const filteredData = userData.filter(
-    user =>
-      user.position === activeRole &&
-      user.name.toLowerCase().includes(search.toLowerCase())
-  );
-
   return (
-    <div className="userlist-container">
-      <div className="userlist-header">
-        <h2>User List</h2>
-        <div className="role-buttons">
-          {['Student', 'Faculty', 'Personnel', 'Guard'].map(role => (
-            <button
-              key={role}
-              className={activeRole === role ? 'active' : ''}
-              onClick={() => setActiveRole(role)}
-            >
-              {role === 'Faculty' ? 'Faculty' : `${role}s`}: {roleCount[role]}
-            </button>
-          ))}
-        </div>
-      </div>
+    <Box p={{ base: 4, md: 8 }} bg="white" minH="100vh">
+      <HStack justify="space-between" align="center" mb={6}>
+        <Heading size="lg">User List</Heading>
+        <HStack>
+          <Button leftIcon={<FiPlus />} colorScheme="red" onClick={() => setModalOpen(true)}>Create User</Button>
+          <Button variant="outline" onClick={() => navigate('/pendinglist')}>Pending</Button>
+        </HStack>
+      </HStack>
 
-      <div className="userlist-actions">
-        <div className="role-buttons">
-          <button className="add">Add</button>
-          <button
-            className="pending"
-            onClick={() => navigate('/pendinglist')} 
-          >
-            Pending
-          </button>
-        </div>
+      <HStack justify="space-between" mb={4} align="center">
+        <HStack>
+          {(() => {
+            const roles = ['All','Student','Faculty','Employee','Guard'];
+            const counts = roles.reduce((acc, r) => {
+              if (r === 'All') return { ...acc, All: users.length };
+              const c = users.filter(u => (u.role||'').toLowerCase() === r.toLowerCase()).length;
+              return { ...acc, [r]: c };
+            }, {});
 
-        <div className="right-actions">
-          <input
-            type="text"
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select value={sort} onChange={(e) => setSort(e.target.value)}>
-            <option value="newest">Newest to Oldest</option>
-            <option value="oldest">Oldest to Newest</option>
-          </select>
-        </div>
-      </div>
+            return roles.map(role => (
+              <Button
+                key={role}
+                size="sm"
+                onClick={()=>setActiveRole(role)}
+                className={`${activeRole===role ? 'active' : ''} ${role==='Guard' ? 'guard-active' : ''}`}
+                data-role={role}
+              >
+                {(() => {
+                  const r = role.toLowerCase();
+                  if (r === 'faculty') return (<><FaChalkboardTeacher />&nbsp;</>);
+                  if (r === 'employee') return (<><FaBriefcase />&nbsp;</>);
+                  if (r === 'guard') return (<><FaShieldAlt />&nbsp;</>);
+                  if (r === 'student') return (<><FaUser />&nbsp;</>);
+                  return null;
+                })()}
+                {role}{role!=='All'?` (${counts[role]||0})`:''}
+              </Button>
+            ));
+          })()}
+        </HStack>
 
-      <table className="userlist-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Student No.</th>
-            <th>Phone Number</th>
-            <th>Department</th>
-            <th>Position</th>
-            <th>Vehicle Type</th>
-            <th>Plate Number</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredData.map((user, index) => (
-            <tr key={index}>
-              <td>{user.name}</td>
-              <td>{user.studentno}</td>
-              <td>{user.phonenumber}</td>
-              <td>{user.department}</td>
-              <td>{user.position}</td>
-              <td>{user.vehicletype}</td>
-              <td>{user.platenumber}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        <Input maxW="320px" placeholder="Search name or email..." value={search} onChange={(e)=>setSearch(e.target.value)} />
+      </HStack>
+
+      {loading ? (
+        <Spinner />
+      ) : (
+        <Table variant="simple">
+          <Thead>
+            <Tr>
+              <Th>Name</Th>
+              <Th>Email</Th>
+              <Th>Department</Th>
+              <Th>Contact</Th>
+              <Th>Plate Numbers</Th>
+              <Th>OR</Th>
+              <Th>CR</Th>
+              <Th>Actions</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {filtered.map((u) => (
+              <Tr key={u.id}>
+                <Td>
+                  <HStack>
+                    {(() => {
+                      const role = (u.role||'').toLowerCase();
+                      if (role === 'faculty') return <FaChalkboardTeacher />;
+                      if (role === 'employee') return <FaBriefcase />;
+                      if (role === 'guard') return <FaShieldAlt />;
+                      return <FaUser />;
+                    })()}
+                    <Box>{u.name}</Box>
+                  </HStack>
+                </Td>
+                <Td>{u.email}</Td>
+                <Td>{u.department || ''}</Td>
+                <Td>{u.contact_number || ''}</Td>
+                <Td>
+                  <Wrap>
+                    {(platesByUser[String(u.id)] || []).map(p => (
+                      <WrapItem key={p}><Tag size="sm" colorScheme="gray">{p}</Tag></WrapItem>
+                    ))}
+                    {/* fallback to user_details plate_number if no vehicles */}
+                    {((platesByUser[String(u.id)] || []).length === 0 && u.plate_number) ? (
+                      <WrapItem><Tag size="sm">{u.plate_number}</Tag></WrapItem>
+                    ) : null}
+                  </Wrap>
+                </Td>
+                <Td>
+                  {u.or_path ? (
+                    <Link href={`http://localhost:8000/api/image/${u.or_path}`} isExternal><IconButton aria-label="OR" icon={<FiFileText />} size="sm" /></Link>
+                  ) : ('')}
+                </Td>
+                <Td>
+                  {u.cr_path ? (
+                    <Link href={`http://localhost:8000/api/image/${u.cr_path}`} isExternal><IconButton aria-label="CR" icon={<FiDownload />} size="sm" /></Link>
+                  ) : ('')}
+                </Td>
+                <Td>
+                  <HStack>
+                    <Button size="sm" colorScheme="gray" variant="outline" onClick={() => setEditUser(u)}>Edit</Button>
+                    <Button size="sm" colorScheme="red" onClick={() => setVehicleModalUser(u)}>Add Vehicle</Button>
+                    <Button leftIcon={<FiEye />} size="sm" colorScheme="blue" variant="ghost" onClick={() => setVehicleListUser(u)}>Vehicles</Button>
+                  </HStack>
+                  <Box mt={2} fontSize="12px">{u.vehicle_count ? `${u.vehicle_count} vehicle(s)` : ''}</Box>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      )}
+
+      <Modal isOpen={isModalOpen} onClose={() => setModalOpen(false)} title="Create User">
+        <AdminCreateUser onSuccess={() => { setModalOpen(false); setRefreshKey(k => k + 1); }} />
+      </Modal>
+
+      <Modal isOpen={!!editUser} onClose={() => setEditUser(null)} title={`Edit ${editUser?.name || ''}`}>
+        {editUser && (
+          <EditUserModal user={editUser} onClose={() => setEditUser(null)} onSaved={() => { setEditUser(null); setRefreshKey(k => k + 1); }} />
+        )}
+      </Modal>
+
+      <Modal isOpen={!!vehicleModalUser} onClose={() => setVehicleModalUser(null)} title="Add Vehicle" maxWidth={{ base: '95vw', md: '760px' }}>
+        {vehicleModalUser && (
+          <VehicleModal user={vehicleModalUser} onClose={() => setVehicleModalUser(null)} onSuccess={() => { setVehicleModalUser(null); setRefreshKey(k => k + 1); }} />
+        )}
+      </Modal>
+
+      <Modal isOpen={!!vehicleListUser} onClose={() => setVehicleListUser(null)} title="Vehicles">
+        {vehicleListUser && (
+          <VehicleListModal user={vehicleListUser} onClose={() => setVehicleListUser(null)} onUpdated={() => { setVehicleListUser(null); setRefreshKey(k => k + 1); }} />
+        )}
+      </Modal>
+    </Box>
   );
 };
 

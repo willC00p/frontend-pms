@@ -105,6 +105,47 @@
 	color: #aaa;
 	font-size: 14px;
 	pointer-events: none;
+
+.modal-content .profile-pic {
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  margin: 0 auto 18px;
+  border: 4px solid #eee;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+@media (max-width: 600px) {
+  .modal-content .profile-pic {
+    width: 160px;
+    height: 160px;
+  }
+}
+
+/* Also target Chakra modal content used by Modal.js to ensure preview inside Chakra modal keeps fixed size */
+.chakra-modal__content .profile-pic,
+.chakra-modal .profile-pic,
+.modal-content .profile-pic {
+	width: 240px !important;
+	height: 240px !important;
+	max-width: 240px !important;
+	max-height: 240px !important;
+	border-radius: 50% !important;
+	object-fit: cover !important;
+}
+
+@media (max-width: 600px) {
+	.chakra-modal__content .profile-pic,
+	.chakra-modal .profile-pic,
+	.modal-content .profile-pic {
+		width: 160px !important;
+		height: 160px !important;
+		max-width: 160px !important;
+		max-height: 160px !important;
+	}
+}
 	transition: 0.2s ease all;
 }
 
@@ -458,9 +499,8 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 180px;
-	height: 180px;
-    margin-left: 1000px;
+	width: 140px;
+	height: 140px;
 	margin: 0 auto; /* center the profile picture */
 	border-radius: 50%;
 	background: #f0f2f5; /* neutral background */
@@ -487,14 +527,14 @@
 
 /* Fallback initials */
 .profile-fallback {
-	font-size: 3rem;
-	font-weight: 600;
+	font-size: 1.6rem;
+	font-weight: 700;
 	text-transform: uppercase;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 180px;
-	height: 180px;
+	width: 140px;
+	height: 140px;
 	margin: 0 auto; /* center initials fallback */
 	border-radius: 50%;
 	border: 4px solid #eee;

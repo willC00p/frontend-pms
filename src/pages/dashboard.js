@@ -8,12 +8,28 @@ import {
   FaCog,
   FaBell,
 } from 'react-icons/fa';
-import { getUserName } from 'utils/auth';
+import { getUserName, getToken } from 'utils/auth';
+import api from 'utils/api';
 import 'assets/dashboard.css';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const userName = getUserName() || 'User';
+  const [userName, setUserName] = React.useState(getUserName() || 'User');
+
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        await api.initCsrf();
+        const res = await api.get('/account');
+        const name = res.data?.data?.name || res.data?.name;
+        if (name) setUserName(name);
+      } catch (e) {
+        // ignore - fallback to auth-stored name
+      }
+    };
+    // only call if token exists
+    if (getToken()) load();
+  }, []);
 
   return (
     <div className="dashboard">

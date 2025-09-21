@@ -1,14 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import 'assets/Login.css'; 
 import { Link } from "react-router-dom";
 import api from 'utils/api';
 import { setAuth } from 'utils/auth';
 import { useAlert } from 'context/AlertContext';
+import { getToken } from 'utils/auth';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 function Login() {
   const [values, setValues] = useState({ email: '', password: '' });
+  const [remember, setRemember] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // if already authenticated, redirect to dashboard
+    const t = getToken();
+    if (t) {
+      navigate('/home/dashboard');
+    }
+  }, [navigate]);
 
   const handleInput = (e) => {
     setValues(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -26,8 +38,8 @@ function Login() {
       const email = response.data?.data?.email;
 
       if (token) {
-        // default: do not remember
-        setAuth(token, name || '', email || '', false);
+        // persist based on remember checkbox
+        setAuth(token, name || '', email || '', remember === true);
         showAlert('Login successful!', 'success');
         navigate('/home/dashboard');
       } else {
@@ -57,18 +69,23 @@ function Login() {
           onChange={handleInput}
           className="login-input"
         />
-        <input
-          type="password"
-          name="password"
-          placeholder="Password"
-          value={values.password}
-          onChange={handleInput}
-          className="login-input"
-        />
+        <div style={{ position: 'relative' }}>
+          <input
+            type={showPassword ? 'text' : 'password'}
+            name="password"
+            placeholder="Password"
+            value={values.password}
+            onChange={handleInput}
+            className="login-input"
+          />
+          <button type="button" className="password-toggle" onClick={() => setShowPassword(s => !s)} style={{ position: 'absolute', right: 10, top: 10, background: 'transparent', border: 'none', cursor: 'pointer' }} aria-label="Toggle password visibility">
+            {showPassword ? <FiEyeOff /> : <FiEye />}
+          </button>
+        </div>
 
         <div className="login-options">
           <label>
-            <input type="checkbox" /> Remember me
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} /> Remember me
           </label>
         </div>
 

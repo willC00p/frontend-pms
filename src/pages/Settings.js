@@ -353,11 +353,12 @@ const Settings = () => {
           }}
           title="Edit Profile"
         >
-          <label htmlFor="editProfilePicInput" className="profile-pic-label">
+          <label htmlFor="editProfilePicInput" className="profile-pic-label" style={{ display: 'block', textAlign: 'center' }}>
             <img
               src={preview || profilePic || "/default-avatar.png"}
               alt="Profile Preview"
               className="profile-pic"
+              style={{ width: 240, height: 240, maxWidth: '100%', objectFit: 'cover', borderRadius: '50%', display: 'block', margin: '0 auto 18px' }}
             />
           </label>
           <input
