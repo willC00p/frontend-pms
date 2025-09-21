@@ -1,0 +1,163 @@
+.container {
+  display: flex;
+  min-height: 100vh;
+  background-color: #1e1e1e;
+}
+
+.sidebar {
+  width: 300px;
+  background-color: #232323;
+  padding: 1.5rem;
+  border-right: 1px solid #383838;
+}
+
+.sidebarTitle {
+  font-size: 1.25rem;
+  color: #ffffff;
+  margin-bottom: 1.5rem;
+}
+
+.layoutList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.layoutItem {
+  padding: 1rem;
+  background-color: #2d2d2d;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+.layoutItem:hover {
+  background-color: #333333;
+}
+
+.layoutItem.selected {
+  background-color: #3b82f6;
+}
+
+.layoutItem h3 {
+  color: #ffffff;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.layoutItem p {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.content {
+  flex: 1;
+  padding: 2rem;
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.header h1 {
+  color: #ffffff;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.header p {
+  color: #9ca3af;
+}
+
+.spacesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.spaceCard {
+  background-color: #232323;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.spaceCard h3 {
+  color: #ffffff;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.spaceInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.spaceInfo p {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.assignment {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.assignmentForm {
+  width: 100%;
+}
+
+.driverSelect {
+  width: 100%;
+  padding: 0.5rem;
+  background-color: #2d2d2d;
+  border: 1px solid #383838;
+  border-radius: 0.375rem;
+  color: #ffffff;
+  font-size: 0.875rem;
+}
+
+.unassignButton {
+  padding: 0.5rem 1rem;
+  background-color: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+.unassignButton:hover {
+  background-color: #b91c1c;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: #ffffff;
+  font-size: 1.25rem;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: #ef4444;
+  font-size: 1.25rem;
+}
+
+.noSelection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  color: #9ca3af;
+  text-align: center;
+}

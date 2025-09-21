@@ -1,0 +1,163 @@
+import React, { useState } from 'react';
+import ParkingLayoutEditor from '../components/ParkingLayoutEditor';
+import axios from 'axios';
+
+const ManageParkingLayout = () => {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [layoutName, setLayoutName] = useState('');
+  const [currentLayout, setCurrentLayout] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+
+  const handleFileChange = (event) => {
+    setSelectedFile(event.target.files[0]);
+    setUploadError(null);
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile || !layoutName) {
+      alert('Please select a file and enter a layout name');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('You must be logged in to upload layouts');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('background_image', selectedFile);
+      formData.append('name', layoutName);
+      formData.append('layout_data', JSON.stringify({ spaces: [] }));
+
+      // Configure axios
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      const response = await axios.post(
+        'http://localhost:8000/api/parking-layouts', 
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Accept': 'application/json'
+          }
+        }
+      );
+
+      if (!response.data) {
+        throw new Error('No data received from server');
+      }
+
+      const layoutData = response.data;
+      if (!layoutData.background_image) {
+        throw new Error('No image path received from server');
+      }
+
+      const imageUrl = `http://localhost:8000/storage/${layoutData.background_image}`;
+      
+      // Pre-load the image
+      const img = new Image();
+      img.onload = () => {
+        setCurrentLayout({
+          id: layoutData.id,
+          imageUrl: imageUrl,
+          name: layoutData.name,
+          layoutData: layoutData.layout_data || { spaces: [] }
+        });
+        setIsUploading(false);
+        setLayoutName('');
+        setSelectedFile(null);
+        alert('Layout uploaded successfully!');
+      };
+      
+      img.onerror = () => {
+        console.error('Failed to load image:', imageUrl);
+        setUploadError('Layout uploaded but failed to load image');
+        setIsUploading(false);
+      };
+
+      img.src = imageUrl;
+
+    } catch (error) {
+      console.error('Error uploading layout:', error);
+      setIsUploading(false);
+      
+      if (error.response) {
+        setUploadError(error.response.data.message || 'Server error');
+      } else if (error.request) {
+        setUploadError('No response from server');
+      } else {
+        setUploadError(error.message || 'Unknown error occurred');
+      }
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 py-8 px-4">
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">Upload New Parking Layout</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Layout Name
+              </label>
+              <input
+                type="text"
+                placeholder="Enter layout name"
+                value={layoutName}
+                onChange={(e) => setLayoutName(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Background Image
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            {uploadError && (
+              <div className="text-red-600 text-sm mt-2">
+                Error: {uploadError}
+              </div>
+            )}
+            <button 
+              onClick={handleUpload}
+              disabled={isUploading}
+              className={`w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isUploading ? 'Uploading...' : 'Upload Layout'}
+            </button>
+          </div>
+        </div>
+
+        {currentLayout && (
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">
+              Edit Parking Layout: {currentLayout.name}
+            </h2>
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <ParkingLayoutEditor 
+                layoutId={currentLayout.id}
+                backgroundImage={currentLayout.imageUrl}
+                initialLayoutData={currentLayout.layoutData}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ManageParkingLayout;

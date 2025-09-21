@@ -1,0 +1,116 @@
+.parking-layout-container {
+    position: relative;
+    width: 100%;
+    background: #1a1a1a;
+    border-radius: 8px;
+}
+
+/* Thumbnail view - for parking spaces list */
+.parking-layout-container.thumbnail-view {
+    height: 200px;
+    padding: 10px;
+}
+
+.parking-layout-container.thumbnail-view .layout-background {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.parking-layout-container.thumbnail-view .parking-slots-overlay {
+    display: none; /* Hide the spaces in thumbnail view */
+}
+
+/* Full view - for assignment page */
+.parking-layout-container.full-view {
+    height: calc(100vh - 100px);
+    padding: 0;
+    background: #1a1a1a;
+}
+
+.parking-layout-container.full-view .layout-background {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.layout-background {
+    display: block;
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+.parking-slots-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.parking-slot {
+    position: absolute;
+    border: 2px solid #666;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    pointer-events: auto;
+    z-index: 10;
+}
+
+.parking-slot:hover {
+    transform: scale(1.02);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.parking-slot.available {
+    border-color: #4caf50;
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.parking-slot.occupied {
+    border-color: #f44336;
+    background-color: rgba(244, 67, 54, 0.1);
+}
+
+.slot-number {
+    font-size: 16px;
+    font-weight: bold;
+    color: white;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+    transform: rotate(0deg); /* Keep text upright */
+    display: inline-block;
+    z-index: 2;
+}
+
+.slot-status {
+    font-size: 12px;
+    color: white;
+    margin-top: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+    transform: rotate(0deg); /* Keep text upright */
+    display: inline-block;
+    z-index: 2;
+}
+
+/* Add responsive font sizes */
+@media (max-width: 768px) {
+    .slot-number {
+        font-size: 12px;
+    }
+    .slot-status {
+        font-size: 10px;
+    }
+}

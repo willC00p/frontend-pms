@@ -1,0 +1,221 @@
+.pageContainer {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  background-color: #2d2d2d;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pageTitle {
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+  padding-right: 1rem;
+}
+
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background-color: #1e1e1e;
+  border-bottom: 1px solid #383838;
+  z-index: 90;
+  height: 4rem;
+}
+
+.mainContent {
+  margin-top: 4rem;
+  padding: 2rem;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.layoutGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.layoutCard {
+  background-color: #1e1e1e;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  border: 1px solid #383838;
+  transition: all 200ms;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.layoutCard:hover {
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.layoutPreview {
+  width: 100%;
+  height: 180px;
+  background-color: #2d2d2d;
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.layoutPreview img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.layoutTitle {
+  color: #ffffff;
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.layoutInfo {
+  color: #a0a0a0;
+  font-size: 0.875rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.searchBar {
+  background-color: #2d2d2d;
+  color: #ffffff;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #383838;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  min-width: 300px;
+  transition: all 200ms;
+}
+
+.searchBar:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.actionButton {
+  background-color: #3b82f6;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  border: none;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 200ms;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.actionButton:hover {
+  background-color: #2563eb;
+}
+
+.actionButton:active {
+  transform: translateY(1px);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.statItem {
+  background-color: #2d2d2d;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.statItem span {
+  font-size: 0.75rem;
+  color: #a0a0a0;
+}
+
+.statItem strong {
+  font-size: 1.25rem;
+  color: #ffffff;
+}
+
+.fileInputLabel {
+  display: block;
+  padding: 0.5rem;
+  background-color: #2d2d2d;
+  border: 1px dashed #383838;
+  border-radius: 0.375rem;
+  color: #ffffff;
+  text-align: center;
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+.fileInputLabel:hover {
+  border-color: #3b82f6;
+  background-color: #2a2a2a;
+}
+
+.fileInput {
+  display: none;
+}
+
+.cardActions {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 200ms;
+}
+
+.layoutCard:hover .cardActions {
+  opacity: 1;
+}
+
+.iconButton {
+  background-color: #2d2d2d;
+  color: #ffffff;
+  width: 32px;
+  height: 32px;
+  border-radius: 0.375rem;
+  border: 1px solid #383838;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+.iconButton:hover {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+}

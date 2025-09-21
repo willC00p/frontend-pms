@@ -1,0 +1,18 @@
+.home-container {
+  display: flex;
+  height: 100vh;
+}
+
+.sidebar {
+  flex: 0 0 250px;
+  width: 250px;
+  min-width: 250px;
+  max-width: 250px;
+}
+
+.main-app-content {
+  flex: 1 1 0%;
+  background: #fff;
+  min-width: 0;
+  padding: 0;
+}

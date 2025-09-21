@@ -1,0 +1,100 @@
+.edit-container {
+  padding: 30px;
+}
+
+.hall-title {
+  font-size: 32px;
+  color: #a73737;
+}
+
+.edit-btn {
+  border: 1px solid #a73737;
+  background: none;
+  color: #a73737;
+  padding: 8px 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  cursor: pointer;
+}
+
+.parking-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.zone-label {
+  font-weight: bold;
+  font-size: 18px;
+  width: 100%;
+  color: #a73737;
+}
+
+.parking-zone {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.slot {
+  width: 60px;
+  height: 80px;
+  border: 2px dashed #999;
+  border-radius: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.slot.filled {
+  background-color: #a73737;
+  color: white;
+}
+
+.parking-table {
+  margin-top: 40px;
+}
+
+.table-controls {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.table-controls input {
+  padding: 8px;
+  width: 200px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+.add-btn {
+  background-color: #a73737;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #f9f9f9;
+}
+
+th, td {
+  padding: 10px;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+th {
+  background-color: #eee;
+}
+
+.action-icons {
+  cursor: pointer;
+  font-size: 18px;
+}

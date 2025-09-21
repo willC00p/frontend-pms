@@ -1,0 +1,118 @@
+.userlist-container {
+  padding: 40px 60px;
+  background-color: #fff;
+  min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* --- Header Row --- */
+.userlist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+  row-gap: 15px;
+}
+
+.userlist-header h2 {
+  color: #a73737;
+  font-size: 32px;
+  margin: 0;
+}
+
+.role-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.role-buttons button {
+  background-color: white;
+  border: 2px solid #cc4444;
+  color: #cc4444;
+  font-weight: 500;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+}
+
+.role-buttons button:hover,
+.role-buttons button.active {
+  background-color: #cc4444;
+  color: white;
+  font-weight: bold;
+}
+
+/* --- Actions Row --- */
+.userlist-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.left-actions,
+.right-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.left-actions .action-btn {
+  background-color: white;
+  border: 2px solid #cc4444;
+  color: #cc4444;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.left-actions .action-btn:hover {
+  background-color: #cc4444;
+  color: white;
+}
+
+.right-actions input,
+.right-actions select {
+  padding: 10px 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+  min-width: 180px;
+}
+
+/* --- Table --- */
+.userlist-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.userlist-table th,
+.userlist-table td {
+  padding: 16px 24px;
+  border-bottom: 1px solid #ddd;
+  font-size: 15px;
+}
+
+.userlist-table th {
+  background-color: #f0f0f0;
+  font-weight: 600;
+  color: #333;
+  text-align: left;
+}
+
+.userlist-table tr:hover {
+  background-color: #f5f5f5;
+}

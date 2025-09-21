@@ -1,0 +1,242 @@
+/* src/assets/parking.css */
+
+.parking-container {
+  padding: 40px;
+  background-color: #fff;
+  min-height: 100vh;
+  max-width: 1300px;  /* 🧱 Increased max width */
+  margin: 0 auto;
+}
+
+/* Header section: title + search */
+.parking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.parking-search {
+  padding: 10px 15px;
+  width: 300px;
+  border-radius: 8px;
+  border: 1px solid #cc4444;
+  font-size: 14px;
+  outline: none;
+}
+.parking-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 25px;
+  margin-bottom: 30px;
+}
+
+.parking-card {
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 28px;
+  background-color: #fff;
+  position: relative;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  cursor: pointer;
+}
+
+.thumbnail-container {
+  width: 100%;
+  height: 150px;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #f5f5f5;
+}
+
+.layout-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.loading-message,
+.error-message,
+.empty-message {
+  text-align: center;
+  padding: 40px;
+  font-size: 16px;
+  color: #666;
+  background: #f9f9f9;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.error-message {
+  color: #cc4444;
+  background: #fff5f5;
+}
+
+.empty-message {
+  color: #666;
+  background: #f5f5f5;
+}
+
+.parking-card:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Text inside card */
+.parking-card h4 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.parking-card p {
+  font-size: 14px;
+  margin: 0;
+  color: #555;
+}
+
+.parking-spaces-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.parking-space {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  border: 1px solid #e9ecef;
+}
+
+.parking-space.available {
+  background: #e8f5e9;
+  border-color: #c8e6c9;
+}
+
+.parking-space.occupied {
+  background: #ffebee;
+  border-color: #ffcdd2;
+}
+
+.parking-space h5 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.parking-space p {
+  margin: 5px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.assign-btn,
+.view-assignment-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.assign-btn {
+  background: #4caf50;
+  color: white;
+}
+
+.assign-btn:hover {
+  background: #388e3c;
+}
+
+.view-assignment-btn {
+  background: #2196f3;
+  color: white;
+}
+
+.view-assignment-btn:hover {
+  background: #1976d2;
+}
+
+.edit-layout-btn {
+  background: #ff9800;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background-color 0.2s;
+}
+
+.edit-layout-btn:hover {
+  background: #f57c00;
+}
+
+.status-indicator {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.status-indicator.green { background-color: #4caf50; }
+.status-indicator.orange { background-color: #ff9800; }
+.status-indicator.red { background-color: #f44336; }
+
+/* Color status dots */
+.status-indicator {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
+.status-indicator.green {
+  background-color: #4caf50;
+}
+
+.status-indicator.orange {
+  background-color: #ffa500;
+}
+
+.status-indicator.red {
+  background-color: #f44336;
+}
+
+/* Add Parking button */
+.add-parking-button-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+}
+
+.add-parking-btn {
+  background-color: white;
+  border: 2px solid #cc4444;
+  color: #cc4444;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 22px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+}
+
+.add-parking-btn:hover {
+  background-color: #cc4444;
+  color: white;
+}
