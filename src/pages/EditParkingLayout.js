@@ -22,6 +22,7 @@ const EditParkingLayout = () => {
     const [textInput, setTextInput] = useState('');
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [textRotation, setTextRotation] = useState(0);
+    const [isTextInspectorOpen, setIsTextInspectorOpen] = useState(false);
 
     useEffect(() => {
         fetchLayout();
@@ -114,35 +115,38 @@ const EditParkingLayout = () => {
             </div>
 
             <div className={styles.editorContainer}>
-                <div className={styles.toolbar}>
-                    <EditorToolbar
-                        mode={mode}
-                        setMode={setMode}
-                        spaceColor={spaceColor}
-                        setSpaceColor={setSpaceColor}
-                        lineColor={lineColor}
-                        setLineColor={setLineColor}
-                        lineWidth={lineWidth}
-                        setLineWidth={setLineWidth}
-                        textSize={textSize}
-                        setTextSize={setTextSize}
-                        textColor={textColor}
-                        setTextColor={setTextColor}
-                        textInput={textInput}
-                        onTextInputChange={setTextInput}
-                    />
-                    <div style={{ marginTop: 8 }}>
-                        <label>Text Rotation: </label>
-                        <input
-                            type="range"
-                            min="0"
-                            max="360"
-                            value={textRotation}
-                            onChange={e => setTextRotation(Number(e.target.value))}
-                        />
-                        <span style={{ marginLeft: 8 }}>{textRotation}&deg;</span>
-                    </div>
-                </div>
+                {/* Hide the parent toolbar while the child's text inspector/modal is open */}
+                {!isTextInspectorOpen && (
+                  <div className={styles.toolbar}>
+                      <EditorToolbar
+                          mode={mode}
+                          setMode={setMode}
+                          spaceColor={spaceColor}
+                          setSpaceColor={setSpaceColor}
+                          lineColor={lineColor}
+                          setLineColor={setLineColor}
+                          lineWidth={lineWidth}
+                          setLineWidth={setLineWidth}
+                          textSize={textSize}
+                          setTextSize={setTextSize}
+                          textColor={textColor}
+                          setTextColor={setTextColor}
+                          textInput={textInput}
+                          onTextInputChange={setTextInput}
+                      />
+                      <div style={{ marginTop: 8 }}>
+                          <label>Text Rotation: </label>
+                          <input
+                              type="range"
+                              min="0"
+                              max="360"
+                              value={textRotation}
+                              onChange={e => setTextRotation(Number(e.target.value))}
+                          />
+                          <span style={{ marginLeft: 8 }}>{textRotation}&deg;</span>
+                      </div>
+                  </div>
+                )}
 
                 <div className={styles.canvasContainer}>
                     {layout && (
@@ -160,6 +164,7 @@ const EditParkingLayout = () => {
                             onTextInputChange={setTextInput}
                             onSave={handleSave}
                             onUndoStateChange={handleUndoStateChange}
+                            onTextInspectorOpenChange={setIsTextInspectorOpen}
                             textRotation={textRotation}
                             setTextRotation={setTextRotation}
                         />

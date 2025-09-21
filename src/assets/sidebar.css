@@ -4,16 +4,16 @@
   min-height: 100vh;
   width: 100vw;
   /* ensure content doesn't sit under fixed sidebar */
-  padding-left: 250px;
+  padding-left: 270px;
 }
 
 .sidebar {
-  background-color: #c04a4a;
-  width: 250px;
-  min-width: 250px;
+  background-color: #a73737; /* maroon */
+  width: 270px;
+  min-width: 270px;
   height: 100vh;
   color: white;
-  padding: 20px;
+  padding: 18px;
   font-family: 'Poppins', sans-serif;
   overflow-y: auto;
   display: flex;
@@ -38,66 +38,71 @@
 
 .sidebar-logo {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  margin-bottom: 30px;
+  gap: 12px;
+  margin-bottom: 28px;
   text-decoration: none;
   color: white;
 }
 
 .logo-image {
-  width: 120px;
-  height: 120px;
+  width: 72px;
+  height: 72px;
   object-fit: cover;
   border-radius: 50%;
-  margin-bottom: 10px;
 }
 
 .logo-title {
-  text-align: center;
-  line-height: 1.2;
+  text-align: left;
+  line-height: 1.05;
 }
-
 .logo-line1 {
   font-size: 14px;
-  font-weight: bold;
-  letter-spacing: 0.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
 }
-
 .logo-line2 {
-  font-size: 14px;
-  font-weight: bold;
-  opacity: 10;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.95;
 }
 
 .sidebar-menu {
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 0 0 8px 0;
 }
 
 .sidebar-menu li {
-  padding: 15px 10px;
-  margin-bottom: 10px;
+  padding: 16px 12px;
+  margin-bottom: 12px;
   cursor: pointer;
-  font-size: 14px;
-  border-radius: 5px;
-  transition: 0.3s;
+  font-size: 15px;
+  border-radius: 8px;
+  transition: 0.18s ease-in-out;
 }
-
 .sidebar-menu li a {
   color: white;
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  font-weight: 600;
 }
-
 .sidebar-icon {
-  margin-right: 5px;
+  margin-right: 8px;
+  font-size: 18px;
 }
-
 .sidebar-menu li:hover,
 .sidebar-menu li.active {
-  background-color: #a73737;
+  background-color: #7f2d2d;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+.logout-btn {
+  color: white;
+  font-weight: 700;
+  padding: 12px 10px;
+  border-radius: 8px;
 }

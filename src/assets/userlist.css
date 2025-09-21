@@ -48,15 +48,17 @@
 }
 
 .role-buttons button.active {
-  background-color: #fff0f0;
-  border-color: #f3c6c6;
-  color: #a73737;
+  background-color: #a73737; /* maroon background for selected */
+  border-color: #7f2d2d;
+  color: #ffffff;
   font-weight: 700;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
 }
 
+/* ensure Guard still uses same maroon style when active */
 .role-buttons button.guard-active,
 .role-buttons button[data-role="Guard"].active {
-  background-color: #a73737;
+  background-color: #7f2d2d;
   color: #fff;
 }
 

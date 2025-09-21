@@ -18,7 +18,9 @@ const ParkingLayoutEditor = ({
   textInput,
   onTextInputChange,
   onSave,
+  onRemoveBackground,
   onUndoStateChange,
+  onTextInspectorOpenChange,
   textRotation: propTextRotation
 }) => {
   // History tracking
@@ -90,11 +92,62 @@ const ParkingLayoutEditor = ({
   const [selectedElement, setSelectedElement] = useState(null);
   const stageRef = useRef(null);
   const layerRef = useRef(null);
+  const [externalModalOpen, setExternalModalOpen] = useState(false);
+
+  // Notify parent when a modal/inspector in the editor is opened so the parent
+  // can hide its own toolbar. We consider either the text inspector OR the
+  // Edit Parking Space modal (selectedSpace) as a modal state that should
+  // hide toolbars.
+  useEffect(() => {
+    const isOpen = (selectedElement?.type === 'text' || !!selectedSpace) && editorMode === 'edit';
+    if (typeof onTextInspectorOpenChange === 'function') {
+      try {
+        onTextInspectorOpenChange(isOpen);
+      } catch (err) {
+        // swallow errors from parent callback
+        console.warn('onTextInspectorOpenChange callback error', err);
+      }
+    }
+
+    return () => {
+      // Ensure parent is informed when this component unmounts
+      if (typeof onTextInspectorOpenChange === 'function') {
+        try { onTextInspectorOpenChange(false); } catch (err) {}
+      }
+    };
+  }, [selectedElement, selectedSpace, editorMode, onTextInspectorOpenChange]);
+
+  // Local flag: when a modal/inspector in the editor is visible we also hide
+  // the editor's floating toolbar so the user has an uncluttered editing surface.
+  const localIsTextInspectorOpen = (selectedElement?.type === 'text' || !!selectedSpace || externalModalOpen) && editorMode === 'edit';
+
+  // Listen for global modal open/close events so external modals (create/edit
+  // account) can hide the editor toolbar while visible.
+  useEffect(() => {
+    const openHandler = () => setExternalModalOpen(true);
+    const closeHandler = () => setExternalModalOpen(false);
+    window.addEventListener('app:modal-open', openHandler);
+    window.addEventListener('app:modal-close', closeHandler);
+    return () => {
+      window.removeEventListener('app:modal-open', openHandler);
+      window.removeEventListener('app:modal-close', closeHandler);
+    };
+  }, []);
 
   // Zoom constants and handlers
   const ABS_MIN_SCALE = 0.3; // absolute lower bound when no background image
   const MAX_SCALE = 3;
-  const getMinScale = () => backgroundImage ? 1 : ABS_MIN_SCALE;
+  // Minimum scale so that rendered area never becomes smaller than 1024x768
+  const getMinScale = () => {
+    try {
+      const minByWidth = 1024 / (imageSize.width || 1024);
+      const minByHeight = 768 / (imageSize.height || 768);
+      const required = Math.max(minByWidth, minByHeight);
+      return Math.max(ABS_MIN_SCALE, required);
+    } catch (err) {
+      return ABS_MIN_SCALE;
+    }
+  };
 
   const handleZoomIn = () => {
     setStageScale(scale => Math.min(MAX_SCALE, +(scale * 1.15).toFixed(3)));
@@ -115,6 +168,7 @@ const ParkingLayoutEditor = ({
           img.src = src;
 
           img.onload = () => {
+            // Use fixed dimensions of 1024x768 to match original rendered space
             setImageSize({ width: 1024, height: 768 });
             setImage(img);
           };
@@ -626,6 +680,7 @@ const ParkingLayoutEditor = ({
   return (
   <div className={styles.editorContainer}>
       
+      {!localIsTextInspectorOpen && (
       <div 
         className={styles.toolbar}
         style={{
@@ -801,6 +856,20 @@ const ParkingLayoutEditor = ({
               <FaImage />
             </button>
           )}
+          {backgroundImage && (
+            <button
+              className={styles.toolButton}
+              onClick={() => {
+                // hide locally and call parent to remove stored background
+                setShowImage(false);
+                setImage(null);
+                onRemoveBackground?.();
+              }}
+              title="Remove Background Image"
+            >
+              Remove
+            </button>
+          )}
           <button
             className={styles.toolButton}
             onClick={handleSave}
@@ -822,11 +891,12 @@ const ParkingLayoutEditor = ({
           )}
         </div>
       </div>
+  )}
     <div className={styles.stageContainer}>
         <Stage
           ref={stageRef}
-          width={1024}
-          height={768}
+          width={imageSize.width}
+          height={imageSize.height}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -1076,7 +1146,7 @@ const ParkingLayoutEditor = ({
       </Stage>
       </div>
       {selectedSpace && editorMode === 'edit' && (
-        <div className={styles.modal}>
+        <div className={styles.modal} style={{ zIndex: 2000 }}>
           <div className={styles.modalContent}>
             <div className={styles.modalHeader}>
               <h3 className={styles.modalTitle}>Edit Parking Space</h3>
@@ -1165,7 +1235,7 @@ const ParkingLayoutEditor = ({
       )}
         {/* Selected text inspector: rotation control */}
         {selectedElement?.type === 'text' && editorMode === 'edit' && (
-          <div className={styles.modal}>
+          <div className={styles.modal} style={{ zIndex: 2000 }}>
             <div className={styles.modalContent}>
               <div className={styles.modalHeader}>
                 <h3 className={styles.modalTitle}>Edit Text</h3>

@@ -3,6 +3,12 @@ import api from '../utils/api';
 import { Button, Input, Select, Stack, Box, FormLabel } from '@chakra-ui/react';
 
 export default function AdminCreateUser({ onSuccess }) {
+  // Notify other parts of the app that a modal (create user) is open so
+  // floating toolbars can hide when account creation overlays the UI.
+  React.useEffect(() => {
+    try { window.dispatchEvent(new CustomEvent('app:modal-open')); } catch (e) {}
+    return () => { try { window.dispatchEvent(new CustomEvent('app:modal-close')); } catch (e) {} };
+  }, []);
   const [role, setRole] = useState('Student');
   const [form, setForm] = useState({ firstname: '', lastname: '', email: '', password: '', department: '', student_no: '', course: '', yr_section: '', position: '', contact_number: '', plate_number: '' });
   const [orFile, setOrFile] = useState(null);
@@ -14,6 +20,8 @@ export default function AdminCreateUser({ onSuccess }) {
   const submit = async (e) => {
     e.preventDefault();
     try {
+      // Ensure CSRF cookie is initialized for Sanctum-protected endpoints
+      await api.initCsrf();
       const data = new FormData();
       data.append('firstname', form.firstname);
       data.append('lastname', form.lastname);
@@ -37,12 +45,32 @@ export default function AdminCreateUser({ onSuccess }) {
     if (orFile) data.append('or_file', orFile);
     if (crFile) data.append('cr_file', crFile);
 
-      const endpoint = `/admin/create${role}`; // matches backend naming: createStudent/createFaculty/createEmployee/createGuard
-  const res = await api.post(endpoint, data, { headers: { 'Content-Type': 'multipart/form-data' } });
-  setMessage('Created: ' + JSON.stringify(res.data));
+    // Backend routes use kebab-case: create-student, create-faculty, create-employee, create-guard
+    const endpoint = `/admin/create-${String(role).toLowerCase()}`;
+        // Debug: show which endpoint we're posting to
+        console.debug('AdminCreateUser: posting to', endpoint);
+        const res = await api.post(endpoint, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+        setMessage('Created: ' + JSON.stringify(res.data));
   if (onSuccess) onSuccess(res.data);
     } catch (err) {
-      setMessage('Error: ' + (err.response?.data?.message || err.message));
+        // Try to extract validation details from the response (backend sends data => validation errors)
+        const resp = err.response?.data;
+        let msg = 'Error: ' + (resp?.message || err.message || 'Unknown error');
+        if (resp?.data) {
+          // If it's a validator messages bag, render fields -> messages
+          if (typeof resp.data === 'object') {
+            const parts = [];
+            for (const [field, val] of Object.entries(resp.data)) {
+              if (Array.isArray(val)) parts.push(`${field}: ${val.join(', ')}`);
+              else parts.push(`${field}: ${String(val)}`);
+            }
+            if (parts.length) msg += '\n' + parts.join('\n');
+          } else {
+            msg += '\n' + JSON.stringify(resp.data);
+          }
+        }
+        console.error('AdminCreateUser error response:', err.response || err);
+        setMessage(msg);
     }
   };
 

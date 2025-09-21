@@ -245,6 +245,33 @@ const ManageParkingLayout = () => {
           </button>
         </div>
 
+        {isImageUploaded && currentImageUrl && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => {
+                // remove preview image locally
+                setIsImageUploaded(false);
+                setCurrentImage(null);
+                setCurrentImageUrl(null);
+                setSelectedFile(null);
+              }}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: '#FFFFFF',
+                color: '#E76F6F',
+                border: '2px solid #E76F6F',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600'
+              }}
+            >
+              Remove Image
+            </button>
+          </div>
+        )}
+
         {uploadError && (
           <div style={{ 
             color: '#ff4444', 

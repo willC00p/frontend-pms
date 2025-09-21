@@ -3,6 +3,12 @@ import { Box, Button, Input, Stack, Heading } from '@chakra-ui/react';
 import api from '../utils/api';
 
 export default function EditUserModal({ user, onClose, onSaved }) {
+  // Notify the app when this modal is mounted/unmounted so floating toolbars
+  // (like the parking layout editor) can hide while the modal is visible.
+  useEffect(() => {
+    try { window.dispatchEvent(new CustomEvent('app:modal-open')); } catch (e) {}
+    return () => { try { window.dispatchEvent(new CustomEvent('app:modal-close')); } catch (e) {} };
+  }, []);
   const [form, setForm] = useState({ firstname: '', lastname: '', email: '', department: '', contact_number: '' });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');

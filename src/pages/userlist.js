@@ -61,6 +61,14 @@ const UserList = () => {
     return () => { mounted = false; };
   }, [refreshKey]);
 
+  // role list and counts for filter buttons
+  const roles = ['All','Student','Faculty','Employee','Guard'];
+  const counts = roles.reduce((acc, r) => {
+    if (r === 'All') return { ...acc, All: users.length };
+    const c = users.filter(u => (u.role||'').toLowerCase() === r.toLowerCase()).length;
+    return { ...acc, [r]: c };
+  }, {});
+
   // Map user_id -> plate numbers from vehicles
   const platesByUser = vehicles.reduce((acc, v) => {
     const uid = String(v.user_id);
@@ -89,21 +97,26 @@ const UserList = () => {
 
       <HStack justify="space-between" mb={4} align="center">
         <HStack>
-          {(() => {
-            const roles = ['All','Student','Faculty','Employee','Guard'];
-            const counts = roles.reduce((acc, r) => {
-              if (r === 'All') return { ...acc, All: users.length };
-              const c = users.filter(u => (u.role||'').toLowerCase() === r.toLowerCase()).length;
-              return { ...acc, [r]: c };
-            }, {});
-
-            return roles.map(role => (
+          {roles.map(role => {
+            const isActiveRole = activeRole === role;
+            return (
               <Button
                 key={role}
                 size="sm"
                 onClick={()=>setActiveRole(role)}
-                className={`${activeRole===role ? 'active' : ''} ${role==='Guard' ? 'guard-active' : ''}`}
                 data-role={role}
+                style={{
+                  backgroundColor: isActiveRole ? '#a73737' : 'white',
+                  color: isActiveRole ? 'white' : '#333',
+                  border: isActiveRole ? '1px solid #7f2d2d' : '1px solid #e6e6e6',
+                  fontWeight: isActiveRole ? 700 : 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 14px',
+                  borderRadius: 999,
+                  cursor: 'pointer',
+                }}
               >
                 {(() => {
                   const r = role.toLowerCase();
@@ -115,8 +128,8 @@ const UserList = () => {
                 })()}
                 {role}{role!=='All'?` (${counts[role]||0})`:''}
               </Button>
-            ));
-          })()}
+            );
+          })}
         </HStack>
 
         <Input maxW="320px" placeholder="Search name or email..." value={search} onChange={(e)=>setSearch(e.target.value)} />
