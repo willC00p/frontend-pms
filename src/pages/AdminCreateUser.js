@@ -10,16 +10,64 @@ export default function AdminCreateUser({ onSuccess }) {
     return () => { try { window.dispatchEvent(new CustomEvent('app:modal-close')); } catch (e) {} };
   }, []);
   const [role, setRole] = useState('Student');
-  const [form, setForm] = useState({ firstname: '', lastname: '', email: '', password: '', department: '', student_no: '', course: '', yr_section: '', position: '', contact_number: '', plate_number: '' });
+  const [form, setForm] = useState({ firstname: '', lastname: '', email: '', password: '', department: '', student_no: '', course: '', yr_section: '', position: '', contact_number: '', plate_number: '', vehicle_color: '', vehicle_type: '', brand: '', model: '', faculty_id: '', employee_id: '', username: '' });
+  const [orNumber, setOrNumber] = useState('');
+  const [crNumber, setCrNumber] = useState('');
   const [orFile, setOrFile] = useState(null);
   const [crFile, setCrFile] = useState(null);
   const [message, setMessage] = useState('');
+  const [orNumberError, setOrNumberError] = useState('');
+  const [crNumberError, setCrNumberError] = useState('');
+  const [checkingUnique, setCheckingUnique] = useState(false);
 
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
     try {
+      // Client-side: require all fields for Student/Faculty/Employee (nothing optional)
+      const missing = [];
+      if (role !== 'Guard') {
+        // required user fields
+        ['firstname','lastname','email','password','department','contact_number','plate_number','vehicle_color','vehicle_type','brand','model','orNumber','crNumber'].forEach(f => {
+          // handle orNumber/crNumber separately
+          if (f === 'orNumber') { if (!orNumber || !orNumber.trim()) missing.push('OR number'); return; }
+          if (f === 'crNumber') { if (!crNumber || !crNumber.trim()) missing.push('CR number'); return; }
+          const val = (f in form) ? form[f] : null;
+          if (!val || (typeof val === 'string' && !val.trim())) missing.push(f);
+        });
+        // files
+        if (!orFile) missing.push('OR PDF');
+        if (!crFile) missing.push('CR PDF');
+      } else {
+        // Guard: require username, email, password
+        if (!form.username || !form.username.trim()) missing.push('username');
+        if (!form.email || !form.email.trim()) missing.push('email');
+        if (!form.password || !form.password.trim()) missing.push('password');
+      }
+      if (missing.length) {
+        setMessage('Please fill required fields: ' + missing.join(', '));
+        return;
+      }
+
+      // Run a quick uniqueness check before attempting to submit
+      const orVal = orNumber?.trim() || null;
+      const crVal = crNumber?.trim() || null;
+      if (orVal || crVal) {
+        setCheckingUnique(true);
+        await api.initCsrf();
+        const checkResp = await api.post('vehicles/check-unique', { or_number: orVal, cr_number: crVal });
+        setCheckingUnique(false);
+        const exists = checkResp.data?.exists || {};
+        if (exists.or_number) setOrNumberError('OR number already in use');
+        else setOrNumberError('');
+        if (exists.cr_number) setCrNumberError('CR number already in use');
+        else setCrNumberError('');
+        if (exists.or_number || exists.cr_number) {
+          setMessage('Please resolve OR/CR number validation errors before submitting.');
+          return;
+        }
+      }
       // Ensure CSRF cookie is initialized for Sanctum-protected endpoints
       await api.initCsrf();
       const data = new FormData();
@@ -30,6 +78,11 @@ export default function AdminCreateUser({ onSuccess }) {
       data.append('department', form.department);
       data.append('contact_number', form.contact_number);
       data.append('plate_number', form.plate_number);
+  // vehicle details
+  data.append('vehicle_color', form.vehicle_color);
+  data.append('vehicle_type', form.vehicle_type);
+  data.append('brand', form.brand);
+  data.append('model', form.model);
       if (role === 'Student') {
         data.append('student_no', form.student_no);
         data.append('course', form.course);
@@ -44,6 +97,14 @@ export default function AdminCreateUser({ onSuccess }) {
   // Prefer separate files but keep backward compatible single field
     if (orFile) data.append('or_file', orFile);
     if (crFile) data.append('cr_file', crFile);
+  if (orNumber) data.append('or_number', orNumber);
+  if (crNumber) data.append('cr_number', crNumber);
+
+  // include vehicle fields explicitly for backend
+  if (form.vehicle_color) data.append('vehicle_color', form.vehicle_color);
+  if (form.vehicle_type) data.append('vehicle_type', form.vehicle_type);
+  if (form.brand) data.append('brand', form.brand);
+  if (form.model) data.append('model', form.model);
 
     // Backend routes use kebab-case: create-student, create-faculty, create-employee, create-guard
     const endpoint = `/admin/create-${String(role).toLowerCase()}`;
@@ -71,6 +132,30 @@ export default function AdminCreateUser({ onSuccess }) {
         }
         console.error('AdminCreateUser error response:', err.response || err);
         setMessage(msg);
+    }
+  };
+
+  // Trigger uniqueness check (called onBlur of inputs)
+  const handleCheckUnique = async () => {
+    const orVal = orNumber?.trim() || null;
+    const crVal = crNumber?.trim() || null;
+    if (!orVal && !crVal) {
+      setOrNumberError(''); setCrNumberError('');
+      return;
+    }
+    try {
+      setCheckingUnique(true);
+      await api.initCsrf();
+      const resp = await api.post('vehicles/check-unique', { or_number: orVal, cr_number: crVal });
+      setCheckingUnique(false);
+      const exists = resp.data?.exists || {};
+      if (exists.or_number) setOrNumberError('OR number already in use'); else setOrNumberError('');
+      if (exists.cr_number) setCrNumberError('CR number already in use'); else setCrNumberError('');
+    } catch (e) {
+      setCheckingUnique(false);
+      // network or server error: don't block user, but surface a message
+      console.error('check-unique error', e);
+      setMessage('Could not validate OR/CR uniqueness at this time.');
     }
   };
 
@@ -130,7 +215,7 @@ export default function AdminCreateUser({ onSuccess }) {
           )}
 
           {role !== 'Guard' && (
-            <Input name="plate_number" placeholder="Plate number (optional)" value={form.plate_number} onChange={onChange} />
+            <Input name="plate_number" placeholder="Plate number" value={form.plate_number} onChange={onChange} isRequired />
           )}
 
           {(role === 'Student' || role === 'Faculty' || role === 'Employee') && (
@@ -146,9 +231,31 @@ export default function AdminCreateUser({ onSuccess }) {
             </Stack>
           )}
 
+          {role !== 'Guard' && (
+            <Stack direction={{ base: 'column', md: 'row' }} spacing={3}>
+              <Input name="vehicle_color" placeholder="Vehicle color" value={form.vehicle_color} onChange={onChange} isRequired />
+              <Input name="vehicle_type" placeholder="Vehicle type" value={form.vehicle_type} onChange={onChange} isRequired />
+              <Input name="brand" placeholder="Brand" value={form.brand} onChange={onChange} isRequired />
+              <Input name="model" placeholder="Model" value={form.model} onChange={onChange} isRequired />
+            </Stack>
+          )}
+
+          {(role === 'Student' || role === 'Faculty' || role === 'Employee') && (
+            <Stack direction={{ base: 'column', md: 'row' }} spacing={3}>
+              <div style={{ flex: 1 }}>
+                <Input name="or_number" placeholder="OR number" value={orNumber} onChange={(e) => { setOrNumber(e.target.value); setOrNumberError(''); }} onBlur={handleCheckUnique} isInvalid={!!orNumberError} isRequired />
+                {orNumberError && <Box color="red.500" fontSize="sm" mt={1}>{orNumberError}</Box>}
+              </div>
+              <div style={{ flex: 1 }}>
+                <Input name="cr_number" placeholder="CR number" value={crNumber} onChange={(e) => { setCrNumber(e.target.value); setCrNumberError(''); }} onBlur={handleCheckUnique} isInvalid={!!crNumberError} isRequired />
+                {crNumberError && <Box color="red.500" fontSize="sm" mt={1}>{crNumberError}</Box>}
+              </div>
+            </Stack>
+          )}
+
           <Stack direction="row" justify="flex-end" spacing={3}>
             <Button variant="outline" onClick={() => { if (onSuccess) onSuccess(null); }}>Cancel</Button>
-            <Button colorScheme="red" type="submit">Create {role}</Button>
+            <Button colorScheme="red" type="submit" isLoading={checkingUnique}>Create {role}</Button>
           </Stack>
 
           {message && <Box mt={2}>{message}</Box>}
