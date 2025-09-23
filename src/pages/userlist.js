@@ -41,6 +41,7 @@ const UserList = () => {
   const [vehicleModalUser, setVehicleModalUser] = useState(null);
   const [vehicleListUser, setVehicleListUser] = useState(null);
   const [editUser, setEditUser] = useState(null);
+  const [viewDocsUser, setViewDocsUser] = useState(null);
 
   const navigate = useNavigate();
 
@@ -193,44 +194,61 @@ const UserList = () => {
                   </Wrap>
                 </Td>
                 <Td>
-                  <Wrap>
-                    {(vehiclesByUser[String(u.id)] || []).map(v => (
-                      <WrapItem key={`or-${v.id}`}>
-                        {v.or_number ? (
-                          <Tag size="sm" colorScheme="gray">{v.or_number}</Tag>
-                        ) : (
-                          <Tag size="sm" colorScheme="gray" variant="subtle">—</Tag>
-                        )}
-                        {v.or_path ? (
-                          <Link href={`http://localhost:8000/api/image/${v.or_path}`} isExternal style={{ marginLeft: 6 }}><IconButton aria-label="OR" icon={<FiFileText />} size="xs" /></Link>
-                        ) : null}
-                      </WrapItem>
+                  <HStack spacing={2} align="center">
+                    {/* show up to 2 OR numbers as tags */}
+                    {((orNumbersByUser[String(u.id)] || [])).slice(0,2).map((num, idx) => (
+                      <Tag key={`or-num-${u.id}-${idx}`} size="sm" colorScheme="gray">{num}</Tag>
                     ))}
-                    {/* Fallback to user-level OR if no vehicle ORs present */}
-                    {((orNumbersByUser[String(u.id)] || []).length === 0 && u.or_path) ? (
-                      <WrapItem><Link href={`http://localhost:8000/api/image/${u.or_path}`} isExternal><IconButton aria-label="OR" icon={<FiFileText />} size="sm" /></Link></WrapItem>
-                    ) : null}
-                  </Wrap>
+                    {((orNumbersByUser[String(u.id)] || []).length > 2) && (
+                      <Tag size="sm" variant="subtle" cursor="pointer" onClick={() => setViewDocsUser(u)}>+{(orNumbersByUser[String(u.id)] || []).length - 2} more</Tag>
+                    )}
+                    {/* view icon */}
+                    <IconButton aria-label="View documents" icon={<FiFileText />} size="sm" onClick={() => setViewDocsUser(u)} />
+                  </HStack>
                 </Td>
                 <Td>
-                  <Wrap>
-                    {(vehiclesByUser[String(u.id)] || []).map(v => (
-                      <WrapItem key={`cr-${v.id}`}>
-                        {v.cr_number ? (
-                          <Tag size="sm" colorScheme="gray">{v.cr_number}</Tag>
-                        ) : (
-                          <Tag size="sm" colorScheme="gray" variant="subtle">—</Tag>
-                        )}
-                        {v.cr_path ? (
-                          <Link href={`http://localhost:8000/api/image/${v.cr_path}`} isExternal style={{ marginLeft: 6 }}><IconButton aria-label="CR" icon={<FiDownload />} size="xs" /></Link>
-                        ) : null}
-                      </WrapItem>
+                  <HStack spacing={2} align="center">
+                    {/* show up to 2 CR numbers as tags */}
+                    {((crNumbersByUser[String(u.id)] || [])).slice(0,2).map((num, idx) => (
+                      <Tag key={`cr-num-${u.id}-${idx}`} size="sm" colorScheme="gray">{num}</Tag>
                     ))}
-                    {/* Fallback to user-level CR if no vehicle CRs present */}
-                    {((crNumbersByUser[String(u.id)] || []).length === 0 && u.cr_path) ? (
-                      <WrapItem><Link href={`http://localhost:8000/api/image/${u.cr_path}`} isExternal><IconButton aria-label="CR" icon={<FiDownload />} size="sm" /></Link></WrapItem>
-                    ) : null}
-                  </Wrap>
+                    {((crNumbersByUser[String(u.id)] || []).length > 2) && (
+                      <Tag size="sm" variant="subtle" cursor="pointer" onClick={() => setViewDocsUser(u)}>+{(crNumbersByUser[String(u.id)] || []).length - 2} more</Tag>
+                    )}
+                    {/* download icon: download both OR and CR for the user */}
+                    <IconButton aria-label="Download documents" icon={<FiDownload />} size="sm" onClick={async () => {
+                    const veh = vehiclesByUser[String(u.id)] || [];
+                    const orPaths = Array.from(new Set(veh.map(v => v.or_path).filter(Boolean).concat(u.or_path ? [u.or_path] : [])));
+                    const crPaths = Array.from(new Set(veh.map(v => v.cr_path).filter(Boolean).concat(u.cr_path ? [u.cr_path] : [])));
+                    const files = [];
+                    orPaths.forEach(p => files.push({ label: 'OR', url: `http://localhost:8000/api/image/${p}` }));
+                    crPaths.forEach(p => files.push({ label: 'CR', url: `http://localhost:8000/api/image/${p}` }));
+                    // Sequentially download each file
+                    for (const f of files) {
+                      try {
+                        const resp = await fetch(f.url, { credentials: 'include' });
+                        if (!resp.ok) continue;
+                        const blob = await resp.blob();
+                        const disp = resp.headers.get('content-disposition') || '';
+                        let filename = '';
+                        // try to infer filename from header
+                        const m = /filename="?([^";]+)"?/.exec(disp);
+                        if (m && m[1]) filename = m[1];
+                        else filename = `${f.label}_${u.id}_${Date.now()}.pdf`;
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+                      } catch (e) {
+                        console.error('Failed to download', f.url, e);
+                      }
+                    }
+                    }} />
+                  </HStack>
                 </Td>
                 <Td>
                   <HStack>
@@ -265,6 +283,35 @@ const UserList = () => {
       <Modal isOpen={!!vehicleListUser} onClose={() => setVehicleListUser(null)} title="Vehicles">
         {vehicleListUser && (
           <VehicleListModal user={vehicleListUser} onClose={() => setVehicleListUser(null)} onUpdated={() => { setVehicleListUser(null); setRefreshKey(k => k + 1); }} />
+        )}
+      </Modal>
+
+      {/* Documents viewer modal: shows OR and CR files for the selected user */}
+      <Modal isOpen={!!viewDocsUser} onClose={() => setViewDocsUser(null)} title={`Documents for ${viewDocsUser?.name || ''}`} maxWidth={{ base: '95vw', md: '760px' }}>
+        {viewDocsUser && (
+          <Box p={3}>
+            <Heading size="sm" mb={2}>Official Receipts (OR)</Heading>
+            {(vehiclesByUser[String(viewDocsUser.id)] || []).map(v => v.or_path).filter(Boolean).length === 0 && !viewDocsUser.or_path ? (
+              <Box color="gray.500">No OR files available.</Box>
+            ) : (
+              (Array.from(new Set(((vehiclesByUser[String(viewDocsUser.id)] || []).map(v => v.or_path).filter(Boolean).concat(viewDocsUser.or_path ? [viewDocsUser.or_path] : []))))).map((path, idx) => (
+                <Box key={`orfile-${idx}`} mb={2}>
+                  <Link href={`http://localhost:8000/api/image/${path}`} isExternal>View OR #{idx+1}</Link>
+                </Box>
+              ))
+            )}
+
+            <Heading size="sm" mt={4} mb={2}>Certificate of Registration (CR)</Heading>
+            {(vehiclesByUser[String(viewDocsUser.id)] || []).map(v => v.cr_path).filter(Boolean).length === 0 && !viewDocsUser.cr_path ? (
+              <Box color="gray.500">No CR files available.</Box>
+            ) : (
+              (Array.from(new Set(((vehiclesByUser[String(viewDocsUser.id)] || []).map(v => v.cr_path).filter(Boolean).concat(viewDocsUser.cr_path ? [viewDocsUser.cr_path] : []))))).map((path, idx) => (
+                <Box key={`crfile-${idx}`} mb={2}>
+                  <Link href={`http://localhost:8000/api/image/${path}`} isExternal>View CR #{idx+1}</Link>
+                </Box>
+              ))
+            )}
+          </Box>
         )}
       </Modal>
     </Box>

@@ -20,11 +20,14 @@ export default function AdminCreateUser({ onSuccess }) {
   const [orNumberError, setOrNumberError] = useState('');
   const [crNumberError, setCrNumberError] = useState('');
   const [checkingUnique, setCheckingUnique] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
+    if (submitting) return; // prevent duplicate submissions
+    setSubmitting(true);
     try {
       // Client-side: require all fields for Student/Faculty/Employee (nothing optional)
       const missing = [];
@@ -126,11 +129,11 @@ export default function AdminCreateUser({ onSuccess }) {
   const endpoint = `admin/create-${String(role).toLowerCase()}`;
   // Debug: show which endpoint we're posting to (resolved relative to api.baseURL)
   console.debug('AdminCreateUser: posting to', endpoint, '->', api.defaults.baseURL.replace(/\/$/, '') + '/' + endpoint);
-        const res = await api.post(endpoint, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+    const res = await api.post(endpoint, data, { headers: { 'Content-Type': 'multipart/form-data' } });
     // show success alert and callback
     window.showAlert('Created: ' + JSON.stringify(res.data), 'success', 3000);
     if (onSuccess) onSuccess(res.data);
-    } catch (err) {
+  } catch (err) {
         // Try to extract validation details from the response (backend sends data => validation errors)
         const resp = err.response?.data;
         let msg = 'Error: ' + (resp?.message || err.message || 'Unknown error');
@@ -170,6 +173,7 @@ export default function AdminCreateUser({ onSuccess }) {
         // show error alert via context helper
         try { window.showAlert(msg, 'error', 8000); } catch (e) { setMessage(msg); }
     }
+  setSubmitting(false);
   };
 
   // Trigger uniqueness check (called onBlur of inputs)
