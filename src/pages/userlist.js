@@ -27,7 +27,7 @@ import {
   Wrap,
   WrapItem,
 } from '@chakra-ui/react';
-import { FiFileText, FiDownload, FiPlus, FiEye } from 'react-icons/fi';
+import { FiFileText, FiPlus, FiEye } from 'react-icons/fi';
 import { FaUser, FaChalkboardTeacher, FaBriefcase, FaShieldAlt } from 'react-icons/fa';
 
 const UserList = () => {
@@ -220,39 +220,8 @@ const UserList = () => {
                     {((crNumbersByUser[String(u.id)] || []).length > 2) && (
                       <Tag size="sm" variant="subtle" cursor="pointer" onClick={() => setViewDocsUser(u)}>+{(crNumbersByUser[String(u.id)] || []).length - 2} more</Tag>
                     )}
-                    {/* download icon: download both OR and CR for the user */}
-                    <IconButton aria-label="Download documents" icon={<FiDownload />} size="sm" onClick={async () => {
-                    const veh = vehiclesByUser[String(u.id)] || [];
-                    const orPaths = Array.from(new Set(veh.map(v => v.or_path).filter(Boolean).concat(u.or_path ? [u.or_path] : [])));
-                    const crPaths = Array.from(new Set(veh.map(v => v.cr_path).filter(Boolean).concat(u.cr_path ? [u.cr_path] : [])));
-                    const files = [];
-                    orPaths.forEach(p => files.push({ label: 'OR', url: `http://localhost:8000/api/image/${p}` }));
-                    crPaths.forEach(p => files.push({ label: 'CR', url: `http://localhost:8000/api/image/${p}` }));
-                    // Sequentially download each file
-                    for (const f of files) {
-                      try {
-                        const resp = await fetch(f.url, { credentials: 'include' });
-                        if (!resp.ok) continue;
-                        const blob = await resp.blob();
-                        const disp = resp.headers.get('content-disposition') || '';
-                        let filename = '';
-                        // try to infer filename from header
-                        const m = /filename="?([^";]+)"?/.exec(disp);
-                        if (m && m[1]) filename = m[1];
-                        else filename = `${f.label}_${u.id}_${Date.now()}.pdf`;
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = filename;
-                        document.body.appendChild(a);
-                        a.click();
-                        a.remove();
-                        window.URL.revokeObjectURL(url);
-                      } catch (e) {
-                        console.error('Failed to download', f.url, e);
-                      }
-                    }
-                    }} />
+                    {/* view icon for CR documents (same behavior as OR view) */}
+                    <IconButton aria-label="View documents" icon={<FiFileText />} size="sm" onClick={() => setViewDocsUser(u)} />
                   </HStack>
                 </Td>
                 <Td>
