@@ -652,3 +652,14 @@
         50% { content: 'Loading parking layout..'; }
         75% { content: 'Loading parking layout...'; }
     }
+
+        /* Error message styling used by the assignment form */
+        .error {
+            background: #ffe6e6;
+            color: #a33;
+            border: 1px solid #f5c6cb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }

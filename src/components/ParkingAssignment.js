@@ -18,21 +18,7 @@ const ParkingAssignment = ({ show, onHide, layout, onAssignmentComplete }) => {
     const canvasWidth = 1024;
     const canvasHeight = 768;
 
-    useEffect(() => {
-        if (layout) {
-            // Set parking spaces
-            setParkingSpaces(layout.parking_slots || []);
-            // Set layout elements (lines and texts)
-            setLayoutElements(layout.layout_elements || { lines: [], texts: [] });
-        }
-    }, [layout]);
-
-    // If there's a background image, prevent zooming out below actual size
-    useEffect(() => {
-        if (layout?.background_image && stageScale < 1) {
-            setStageScale(1);
-        }
-    }, [layout, stageScale]);
+    // form state and assignment type
     const [formData, setFormData] = useState({
         parking_slot_id: '',
         user_id: '',
@@ -50,6 +36,15 @@ const ParkingAssignment = ({ show, onHide, layout, onAssignmentComplete }) => {
     });
     const [availableDrivers, setAvailableDrivers] = useState([]);
     const [assignmentType, setAssignmentType] = useState('guest'); // guest or faculty
+
+    useEffect(() => {
+        if (layout) {
+            // Set parking spaces
+            setParkingSpaces(layout.parking_slots || []);
+            // Set layout elements (lines and texts)
+            setLayoutElements(layout.layout_elements || { lines: [], texts: [] });
+        }
+    }, [layout]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -268,13 +263,79 @@ const ParkingAssignment = ({ show, onHide, layout, onAssignmentComplete }) => {
 
                     <div className={styles.formGroup}>
                         <label>Vehicle Plate Number</label>
-                        <input
-                            type="text"
-                            name="vehicle_plate"
-                            value={formData.vehicle_plate}
-                            onChange={handleInputChange}
-                            required
-                        />
+                                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                                    <input
+                                                                            type="text"
+                                                                            name="vehicle_plate"
+                                                                            value={formData.vehicle_plate}
+                                                                            onChange={handleInputChange}
+                                                                            required
+                                                                    />
+                                                                    <button type="button" onClick={async () => {
+                                                                            const plate = (formData.vehicle_plate || '').trim();
+                                                                            if (!plate) { setError('Enter a plate number to lookup'); return; }
+                                                                            setIsLoading(true);
+                                                                            setError(null);
+                                                                            try {
+                                                                                await api.initCsrf();
+                                                                                const resp = await api.get(`/vehicles/lookup-by-plate/${encodeURIComponent(plate)}`);
+                                                                                const vehicle = resp.data?.vehicle || resp.data || null;
+                                                                                if (!vehicle) {
+                                                                                    setError('No record found for that plate number');
+                                                                                    return;
+                                                                                }
+                                                                                // Owner and details — try multiple shapes
+                                                                                const owner = vehicle.user || null;
+                                                                                const ownerRole = (owner?.role || '').toLowerCase();
+                                                                                // vehicle-level user details (via vehicles.user_details_id relation)
+                                                                                const vUserDetails = vehicle.userDetails || vehicle.user_details || vehicle.userDetail || null;
+                                                                                // user-level user details (via user->userDetails relation)
+                                                                                const ownerUserDetails = owner?.userDetails || owner?.user_details || owner?.userDetail || null;
+
+                                                                                // block autoload if owner is a student (role or student_no present)
+                                                                                const isStudent = ownerRole === 'student' || !!(vUserDetails?.student_no) || !!(ownerUserDetails?.student_no);
+                                                                                if (isStudent) {
+                                                                                    setError('Autoload blocked: vehicle belongs to a student');
+                                                                                    return;
+                                                                                }
+
+                                                                                // If the vehicle record lacks useful detail (no owner and no vehicle_type), treat as no record
+                                                                                const hasOwner = !!owner;
+                                                                                const hasType = !!(vehicle.vehicle_type);
+                                                                                if (!hasOwner && !hasType) {
+                                                                                    setError('No record found for that plate number');
+                                                                                    return;
+                                                                                }
+
+                                                                                // Optional: ensure the vehicle is compatible with the selected slot (e.g., type match)
+                                                                                const slotType = (selectedSlot?.allowed_vehicle_type || selectedSlot?.type || '').toLowerCase();
+                                                                                const vehType = (vehicle.vehicle_type || '').toLowerCase();
+                                                                                if (slotType && vehType && slotType !== 'any' && slotType !== vehType) {
+                                                                                    setError(`Vehicle found but not compatible with this slot type (${slotType}).`);
+                                                                                    return;
+                                                                                }
+
+                                                                                // prefer vehicle.userDetails, then owner.userDetails
+                                                                                const chosenDetails = vUserDetails || ownerUserDetails || null;
+                                                                                const facultyPosition = chosenDetails?.position || null;
+
+                                                                                // populate form fields from vehicle and owner
+                                                                                setFormData(prev => ({
+                                                                                    ...prev,
+                                                                                    vehicle_plate: vehicle.plate_number || plate,
+                                                                                    vehicle_type: vehicle.vehicle_type || prev.vehicle_type,
+                                                                                    vehicle_color: vehicle.vehicle_color || prev.vehicle_color,
+                                                                                    name: owner?.name || prev.name,
+                                                                                    contact: owner?.contact_number || prev.contact,
+                                                                                    assignee_type: (ownerRole === 'faculty' || !!facultyPosition) ? 'faculty' : prev.assignee_type,
+                                                                                    faculty_position: facultyPosition || prev.faculty_position
+                                                                                }));
+                                                                            } catch (e) {
+                                                                                console.error('Plate lookup failed', e);
+                                                                                setError('Plate lookup failed');
+                                                                            } finally { setIsLoading(false); }
+                                                                    }}>Lookup</button>
+                                                                </div>
                     </div>
 
                     <div className={styles.formGroup}>
