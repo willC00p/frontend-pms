@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import api from '../utils/api';
-import { Button, Input, Select, Stack, Box, FormLabel } from '@chakra-ui/react';
+import { Button, Input, Select, Stack, Box, FormLabel, useToast } from '@chakra-ui/react';
 import { useAlert } from 'context/AlertContext';
 
 export default function AdminCreateUser({ onSuccess }) {
@@ -23,6 +23,7 @@ export default function AdminCreateUser({ onSuccess }) {
   const [submitting, setSubmitting] = useState(false);
 
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const toast = useToast();
 
   const submit = async (e) => {
     e.preventDefault();
@@ -130,8 +131,10 @@ export default function AdminCreateUser({ onSuccess }) {
   // Debug: show which endpoint we're posting to (resolved relative to api.baseURL)
   console.debug('AdminCreateUser: posting to', endpoint, '->', api.defaults.baseURL.replace(/\/$/, '') + '/' + endpoint);
     const res = await api.post(endpoint, data, { headers: { 'Content-Type': 'multipart/form-data' } });
-    // show success alert and callback
-    window.showAlert('Created: ' + JSON.stringify(res.data), 'success', 3000);
+    // show success toast and callback
+    try {
+      toast({ title: 'Created', description: 'User created successfully', status: 'success', duration: 3000, isClosable: true, position: 'top-right' });
+    } catch (e) {}
     if (onSuccess) onSuccess(res.data);
   } catch (err) {
         // Try to extract validation details from the response (backend sends data => validation errors)
@@ -171,7 +174,7 @@ export default function AdminCreateUser({ onSuccess }) {
 
         console.error('AdminCreateUser error response:', err.response || err);
         // show error alert via context helper
-        try { window.showAlert(msg, 'error', 8000); } catch (e) { setMessage(msg); }
+  try { window.showAlert(msg, 'error', 8000); } catch (e) { setMessage(msg); }
     }
   setSubmitting(false);
   };

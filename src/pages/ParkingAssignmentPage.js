@@ -1707,8 +1707,8 @@ const ParkingAssignmentPage = () => {
                                         }
                                     }}>
                                         <option value="">-- choose vehicle --</option>
-                                        {formData._selected_user_vehicles.map(v => (
-                                            <option key={v.id} value={v.id}>{v.plate_number} - {v.vehicle_type || 'Unknown'}</option>
+                                        {formData._selected_user_vehicles.map((v, idx) => (
+                                            <option key={`${v.id || 'veh'}-${idx}`} value={v.id}>{v.plate_number} - {v.vehicle_type || 'Unknown'}</option>
                                         ))}
                                     </select>
                                 </div>

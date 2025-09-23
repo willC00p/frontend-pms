@@ -55,8 +55,8 @@ export default function VehicleListModal({ user, onClose, onUpdated }) {
                 <Tr><Th>Plate</Th><Th>Type</Th><Th>Color</Th><Th>OR</Th><Th>CR</Th><Th>Actions</Th></Tr>
               </Thead>
                 <Tbody>
-                  {vehicles.map(v => (
-                    <Tr key={v.id}>
+                  {vehicles.map((v, idx) => (
+                    <Tr key={`${v.id || 'veh'}-${idx}`}>
                       <Td>{v.plate_number}</Td>
                       <Td>{v.vehicle_type}</Td>
                       <Td>{v.vehicle_color}</Td>

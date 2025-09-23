@@ -51,8 +51,12 @@ const UserList = () => {
     Promise.all([api.get('/users'), api.get('/vehicles')])
       .then(([uRes, vRes]) => {
         if (!mounted) return;
-        setUsers(uRes.data.data || uRes.data || []);
-        setVehicles(vRes.data.data || vRes.data || []);
+        const rawUsers = uRes.data.data || uRes.data || [];
+        const rawVehicles = vRes.data.data || vRes.data || [];
+        // dedupe by id in case backend returns duplicates
+        const uniqueById = (arr) => Array.from(new Map((arr || []).map(item => [String(item.id), item])).values());
+        setUsers(uniqueById(rawUsers));
+        setVehicles(uniqueById(rawVehicles));
       })
       .catch(err => {
         console.error('Failed to load users or vehicles', err);
@@ -165,8 +169,9 @@ const UserList = () => {
             </Tr>
           </Thead>
           <Tbody>
-            {filtered.map((u) => (
-              <Tr key={u.id}>
+            {filtered.map((u, rowIdx) => (
+              // include rowIdx in key to guarantee uniqueness even if ids are unexpectedly duplicated
+              <Tr key={`${u.id || 'user'}-${rowIdx}`}>
                 <Td>
                   <HStack>
                     {(() => {

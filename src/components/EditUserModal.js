@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Button, Input, Stack, Heading, Link } from '@chakra-ui/react';
+import { Box, Button, Input, Stack, Heading, Link, Alert, AlertIcon, useToast } from '@chakra-ui/react';
 import api from '../utils/api';
 import Modal from 'components/Modal';
 import VehicleListModal from './VehicleListModal';
@@ -14,8 +14,10 @@ export default function EditUserModal({ user, onClose, onSaved }) {
   const [form, setForm] = useState({ firstname: '', lastname: '', email: '', department: '', contact_number: '' });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [validationErrors, setValidationErrors] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [showVehiclesModal, setShowVehiclesModal] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     if (!user) return;
@@ -31,8 +33,10 @@ export default function EditUserModal({ user, onClose, onSaved }) {
         const res = await api.get('/vehicles', { params: { user_id: user.id } });
         const list = res.data?.data || res.data || [];
         const arr = Array.isArray(list) ? list : Object.values(list || {});
-        // Ensure we only show vehicles belonging to the selected user
-        setVehicles(arr.filter(v => Number(v.user_id) === Number(user.id)));
+        // Ensure we only show vehicles belonging to the selected user and dedupe by id
+        const forUser = arr.filter(v => Number(v.user_id) === Number(user.id));
+        const unique = Array.from(new Map(forUser.map(v => [String(v.id), v])).values());
+        setVehicles(unique);
       } catch (err) {
         console.debug('Failed to load vehicles for EditUserModal', err);
       }
@@ -78,10 +82,20 @@ export default function EditUserModal({ user, onClose, onSaved }) {
         contact_number: form.contact_number
       };
       await api.put(`/users/${user.id}`, payload);
-      setMessage('Saved');
+  setMessage('Saved');
+  try { toast({ title: 'Saved', description: 'User updated successfully', status: 'success', duration: 3000, isClosable: true, position: 'top-right' }); } catch (e) {}
+      setValidationErrors(null);
       if (onSaved) onSaved();
     } catch (err) {
-      setMessage('Error: ' + (err.response?.data?.message || err.message));
+      const status = err.response?.status;
+      const payload = err.response?.data;
+      if (status === 422 && payload) {
+        const errors = payload.data || payload.errors || {};
+        setValidationErrors(errors);
+        setMessage('Validation error');
+      } else {
+        setMessage('Error: ' + (err.response?.data?.message || err.message));
+      }
     } finally {
       setLoading(false);
     }
@@ -106,15 +120,26 @@ export default function EditUserModal({ user, onClose, onSaved }) {
             <Button variant="ghost" onClick={onClose}>Cancel</Button>
             <Button colorScheme="red" type="submit" isLoading={loading}>Save</Button>
           </Stack>
-          {message && <Box color="red.500">{message}</Box>}
+          {validationErrors && (
+            <Alert status="error">
+              <AlertIcon />
+              <Box>
+                {Object.entries(validationErrors).map(([k, v]) => (
+                  <Box key={k}><strong>{k}:</strong> {Array.isArray(v) ? v.join(', ') : v}</Box>
+                ))}
+              </Box>
+            </Alert>
+          )}
+          {message && !validationErrors && <Alert status={message.startsWith('Error') || message.includes('already') ? 'error' : 'success'}><AlertIcon />{message}</Alert>}
           {/* Show current OR/CR files (read-only links) and quick vehicle management */}
           <Box mt={4}>
             <Heading size="sm" mb={2}>Vehicle Documents</Heading>
             {vehicles.length === 0 ? (
               <Box fontSize="sm" color="gray.500">No vehicles found for this user.</Box>
             ) : (
-              vehicles.map(v => (
-                <Box key={v.id} mb={2}>
+              vehicles.map((v, idx) => (
+                // use index in key to be robust against unexpected duplicate ids
+                <Box key={`${v.id || 'veh'}-${idx}`} mb={2}>
                   <Box fontSize="sm"><strong>{v.plate_number || 'Vehicle #' + v.id}</strong> &nbsp; {v.vehicle_type || ''} {v.vehicle_color ? `(${v.vehicle_color})` : ''}</Box>
                   <Box mt={1} display="flex" gap={2}>
                     {v.or_number ? <Box fontSize="sm">OR: {v.or_number}</Box> : <Box fontSize="sm" color="gray.500">OR: —</Box>}
@@ -134,7 +159,7 @@ export default function EditUserModal({ user, onClose, onSaved }) {
 
       <Modal isOpen={showVehiclesModal} onClose={() => setShowVehiclesModal(false)} title={`Vehicles for ${user?.name}`} maxWidth={{ base: '95vw', md: '760px' }}>
         {showVehiclesModal && (
-          <VehicleListModal user={user} onClose={() => setShowVehiclesModal(false)} onUpdated={() => { setShowVehiclesModal(false); /* refresh vehicles */ (async () => { try { const res = await api.get('/vehicles', { params: { user_id: user.id } }); const list = res.data?.data || res.data || []; setVehicles(Array.isArray(list) ? list : Object.values(list || {})); } catch (err) { console.debug(err); } })(); }} />
+          <VehicleListModal user={user} onClose={() => setShowVehiclesModal(false)} onUpdated={() => { setShowVehiclesModal(false); /* refresh vehicles */ (async () => { try { const res = await api.get('/vehicles', { params: { user_id: user.id } }); const list = res.data?.data || res.data || []; const arr = Array.isArray(list) ? list : Object.values(list || {}); const forUser = arr.filter(v => Number(v.user_id) === Number(user.id)); const unique = Array.from(new Map(forUser.map(v => [String(v.id), v])).values()); setVehicles(unique); } catch (err) { console.debug(err); } })(); }} />
         )}
       </Modal>
     </Box>
