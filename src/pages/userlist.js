@@ -77,6 +77,18 @@ const UserList = () => {
     return acc;
   }, {});
 
+  // Map user_id -> vehicle objects so we can show OR/CR numbers and per-vehicle PDFs
+  const vehiclesByUser = vehicles.reduce((acc, v) => {
+    const uid = String(v.user_id);
+    if (!acc[uid]) acc[uid] = [];
+    acc[uid].push(v);
+    return acc;
+  }, {});
+
+  // For quick access to OR/CR numbers per user (unique)
+  const orNumbersByUser = Object.fromEntries(Object.entries(vehiclesByUser).map(([k, list]) => [k, Array.from(new Set(list.map(v => v.or_number).filter(Boolean)))]));
+  const crNumbersByUser = Object.fromEntries(Object.entries(vehiclesByUser).map(([k, list]) => [k, Array.from(new Set(list.map(v => v.cr_number).filter(Boolean)))]));
+
   const filtered = users.filter(u => {
     // hide Admins from the list and allow role filter
     if ((u.role || '').toLowerCase() === 'admin') return false;
@@ -181,14 +193,44 @@ const UserList = () => {
                   </Wrap>
                 </Td>
                 <Td>
-                  {u.or_path ? (
-                    <Link href={`http://localhost:8000/api/image/${u.or_path}`} isExternal><IconButton aria-label="OR" icon={<FiFileText />} size="sm" /></Link>
-                  ) : ('')}
+                  <Wrap>
+                    {(vehiclesByUser[String(u.id)] || []).map(v => (
+                      <WrapItem key={`or-${v.id}`}>
+                        {v.or_number ? (
+                          <Tag size="sm" colorScheme="gray">{v.or_number}</Tag>
+                        ) : (
+                          <Tag size="sm" colorScheme="gray" variant="subtle">—</Tag>
+                        )}
+                        {v.or_path ? (
+                          <Link href={`http://localhost:8000/api/image/${v.or_path}`} isExternal style={{ marginLeft: 6 }}><IconButton aria-label="OR" icon={<FiFileText />} size="xs" /></Link>
+                        ) : null}
+                      </WrapItem>
+                    ))}
+                    {/* Fallback to user-level OR if no vehicle ORs present */}
+                    {((orNumbersByUser[String(u.id)] || []).length === 0 && u.or_path) ? (
+                      <WrapItem><Link href={`http://localhost:8000/api/image/${u.or_path}`} isExternal><IconButton aria-label="OR" icon={<FiFileText />} size="sm" /></Link></WrapItem>
+                    ) : null}
+                  </Wrap>
                 </Td>
                 <Td>
-                  {u.cr_path ? (
-                    <Link href={`http://localhost:8000/api/image/${u.cr_path}`} isExternal><IconButton aria-label="CR" icon={<FiDownload />} size="sm" /></Link>
-                  ) : ('')}
+                  <Wrap>
+                    {(vehiclesByUser[String(u.id)] || []).map(v => (
+                      <WrapItem key={`cr-${v.id}`}>
+                        {v.cr_number ? (
+                          <Tag size="sm" colorScheme="gray">{v.cr_number}</Tag>
+                        ) : (
+                          <Tag size="sm" colorScheme="gray" variant="subtle">—</Tag>
+                        )}
+                        {v.cr_path ? (
+                          <Link href={`http://localhost:8000/api/image/${v.cr_path}`} isExternal style={{ marginLeft: 6 }}><IconButton aria-label="CR" icon={<FiDownload />} size="xs" /></Link>
+                        ) : null}
+                      </WrapItem>
+                    ))}
+                    {/* Fallback to user-level CR if no vehicle CRs present */}
+                    {((crNumbersByUser[String(u.id)] || []).length === 0 && u.cr_path) ? (
+                      <WrapItem><Link href={`http://localhost:8000/api/image/${u.cr_path}`} isExternal><IconButton aria-label="CR" icon={<FiDownload />} size="sm" /></Link></WrapItem>
+                    ) : null}
+                  </Wrap>
                 </Td>
                 <Td>
                   <HStack>

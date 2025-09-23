@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import api from '../utils/api';
 import { Button, Input, Select, Stack, Box, FormLabel } from '@chakra-ui/react';
+import { useAlert } from 'context/AlertContext';
 
 export default function AdminCreateUser({ onSuccess }) {
   // Notify other parts of the app that a modal (create user) is open so
@@ -53,18 +54,32 @@ export default function AdminCreateUser({ onSuccess }) {
       // Run a quick uniqueness check before attempting to submit
       const orVal = orNumber?.trim() || null;
       const crVal = crNumber?.trim() || null;
-      if (orVal || crVal) {
+      const plateVal = form.plate_number?.trim() || null;
+      const emailVal = form.email?.trim() || null;
+      const contactVal = form.contact_number?.trim() || null;
+      if (orVal || crVal || plateVal || emailVal || contactVal) {
         setCheckingUnique(true);
         await api.initCsrf();
-        const checkResp = await api.post('vehicles/check-unique', { or_number: orVal, cr_number: crVal });
+        const checkResp = await api.post('vehicles/check-unique', { or_number: orVal, cr_number: crVal, plate_number: plateVal, email: emailVal, contact_number: contactVal });
         setCheckingUnique(false);
         const exists = checkResp.data?.exists || {};
-        if (exists.or_number) setOrNumberError('OR number already in use');
-        else setOrNumberError('');
-        if (exists.cr_number) setCrNumberError('CR number already in use');
-        else setCrNumberError('');
-        if (exists.or_number || exists.cr_number) {
-          setMessage('Please resolve OR/CR number validation errors before submitting.');
+        // OR/CR
+        if (exists.or_number) setOrNumberError('OR number already in use'); else setOrNumberError('');
+        if (exists.cr_number) setCrNumberError('CR number already in use'); else setCrNumberError('');
+        // plate/email/contact
+        if (exists.plate_number) {
+          window.showAlert('Plate number already in use', 'error', 6000);
+          setMessage('Plate number already in use');
+          return;
+        }
+        if (exists.email) {
+          window.showAlert('Email already in use', 'error', 6000);
+          setMessage('Email already in use');
+          return;
+        }
+        if (exists.contact_number) {
+          window.showAlert('Contact number already in use', 'error', 6000);
+          setMessage('Contact number already in use');
           return;
         }
       }
@@ -106,13 +121,15 @@ export default function AdminCreateUser({ onSuccess }) {
   if (form.brand) data.append('brand', form.brand);
   if (form.model) data.append('model', form.model);
 
-    // Backend routes use kebab-case: create-student, create-faculty, create-employee, create-guard
-    const endpoint = `/admin/create-${String(role).toLowerCase()}`;
-        // Debug: show which endpoint we're posting to
-        console.debug('AdminCreateUser: posting to', endpoint);
+  // Backend routes use kebab-case: create-student, create-faculty, create-employee, create-guard
+  // IMPORTANT: do NOT prefix with a leading slash because api.baseURL already contains the '/api' path.
+  const endpoint = `admin/create-${String(role).toLowerCase()}`;
+  // Debug: show which endpoint we're posting to (resolved relative to api.baseURL)
+  console.debug('AdminCreateUser: posting to', endpoint, '->', api.defaults.baseURL.replace(/\/$/, '') + '/' + endpoint);
         const res = await api.post(endpoint, data, { headers: { 'Content-Type': 'multipart/form-data' } });
-        setMessage('Created: ' + JSON.stringify(res.data));
-  if (onSuccess) onSuccess(res.data);
+    // show success alert and callback
+    window.showAlert('Created: ' + JSON.stringify(res.data), 'success', 3000);
+    if (onSuccess) onSuccess(res.data);
     } catch (err) {
         // Try to extract validation details from the response (backend sends data => validation errors)
         const resp = err.response?.data;
@@ -130,8 +147,28 @@ export default function AdminCreateUser({ onSuccess }) {
             msg += '\n' + JSON.stringify(resp.data);
           }
         }
+
+        // Additional diagnostics for non-validation errors (keep validation messages clean)
+        try {
+          const status = err.response?.status;
+          if (status && status !== 422) {
+            const cfg = err.response?.config;
+            if (cfg) {
+              // build a sensible URL: ensure single slash between baseURL and url
+              const base = cfg.baseURL ? cfg.baseURL.replace(/\/$/, '') : '';
+              const urlPart = cfg.url ? (cfg.url.startsWith('/') ? cfg.url : `/${cfg.url}`) : '';
+              const called = base + urlPart;
+              console.error('AdminCreateUser request:', cfg.method, called);
+              msg += `\nRequest: ${cfg.method?.toUpperCase() || 'POST'} ${called}`;
+            }
+          }
+        } catch (e) {
+          // ignore diagnostics errors
+        }
+
         console.error('AdminCreateUser error response:', err.response || err);
-        setMessage(msg);
+        // show error alert via context helper
+        try { window.showAlert(msg, 'error', 8000); } catch (e) { setMessage(msg); }
     }
   };
 

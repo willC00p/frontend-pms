@@ -6,6 +6,11 @@ export default function VehicleModal({ user, vehicle, onClose, onSuccess }) {
   const [form, setForm] = useState({ plate_number: user?.plate_number || '', vehicle_color: '', vehicle_type: 'car', brand: '', model: '' });
   const [orFile, setOrFile] = useState(null);
   const [crFile, setCrFile] = useState(null);
+  const [orNumber, setOrNumber] = useState('');
+  const [crNumber, setCrNumber] = useState('');
+  const [orNumberError, setOrNumberError] = useState('');
+  const [crNumberError, setCrNumberError] = useState('');
+  const [checkingUnique, setCheckingUnique] = useState(false);
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -18,9 +23,14 @@ export default function VehicleModal({ user, vehicle, onClose, onSuccess }) {
         vehicle_type: vehicle.vehicle_type || 'car',
         brand: vehicle.brand || '',
         model: vehicle.model || '',
+        
       });
+      setOrNumber(vehicle?.or_number || '');
+      setCrNumber(vehicle?.cr_number || '');
     } else {
       setForm({ plate_number: user?.plate_number || '', vehicle_color: '', vehicle_type: 'car', brand: '', model: '' });
+      setOrNumber('');
+      setCrNumber('');
     }
     setOrFile(null);
     setCrFile(null);
@@ -32,6 +42,24 @@ export default function VehicleModal({ user, vehicle, onClose, onSuccess }) {
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    // pre-submit uniqueness check for OR/CR numbers if provided
+    try {
+      const orVal = orNumber?.trim() || null;
+      const crVal = crNumber?.trim() || null;
+      if (orVal || crVal) {
+        setCheckingUnique(true);
+        await api.initCsrf();
+        const resp = await api.post('vehicles/check-unique', { or_number: orVal, cr_number: crVal });
+        setCheckingUnique(false);
+        const exists = resp.data?.exists || {};
+        if (exists.or_number) { setOrNumberError('OR number already in use'); setSaving(false); return; }
+        if (exists.cr_number) { setCrNumberError('CR number already in use'); setSaving(false); return; }
+      }
+    } catch (e) {
+      setCheckingUnique(false);
+      // proceed but show warning
+      console.warn('Could not validate OR/CR uniqueness', e);
+    }
     const data = new FormData();
     if (!vehicle) data.append('user_id', user.id);
     data.append('plate_number', form.plate_number);
@@ -39,16 +67,18 @@ export default function VehicleModal({ user, vehicle, onClose, onSuccess }) {
     data.append('vehicle_type', form.vehicle_type);
     data.append('brand', form.brand);
     data.append('model', form.model);
+    if (orNumber) data.append('or_number', orNumber);
+    if (crNumber) data.append('cr_number', crNumber);
     if (orFile) data.append('or_file', orFile);
     if (crFile) data.append('cr_file', crFile);
 
     try {
       if (vehicle) {
         data.append('_method', 'PUT');
-        await api.post(`/vehicles/${vehicle.id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+        await api.post(`vehicles/${vehicle.id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
         setMessage('Updated vehicle');
       } else {
-        await api.post('/vehicles', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+        await api.post('vehicles', data, { headers: { 'Content-Type': 'multipart/form-data' } });
         setMessage('Created vehicle');
       }
       if (onSuccess) onSuccess();
@@ -61,7 +91,7 @@ export default function VehicleModal({ user, vehicle, onClose, onSuccess }) {
     if (!vehicle) return;
     if (!window.confirm('Delete this vehicle?')) return;
     try {
-      await api.delete(`/vehicles/${vehicle.id}`);
+  await api.delete(`vehicles/${vehicle.id}`);
       if (onSuccess) onSuccess();
     } catch (err) {
       setMessage('Delete error: ' + (err.response?.data?.message || err.message));
@@ -96,6 +126,21 @@ export default function VehicleModal({ user, vehicle, onClose, onSuccess }) {
             <FormLabel>Vehicle CR (PDF)</FormLabel>
             <Input type="file" accept="application/pdf" onChange={(e) => setCrFile(e.target.files[0])} />
           </Box>
+
+          <Stack direction={{ base: 'column', md: 'row' }} spacing={3}>
+            <div style={{ flex: 1 }}>
+              <Input name="or_number" placeholder="OR number" value={orNumber} onChange={(e) => { setOrNumber(e.target.value); setOrNumberError(''); }} onBlur={async () => {
+                const v = orNumber?.trim() || null; if (!v) return; try { setCheckingUnique(true); await api.initCsrf(); const r = await api.post('vehicles/check-unique', { or_number: v }); setCheckingUnique(false); if (r.data?.exists?.or_number) setOrNumberError('OR number already in use'); } catch (e) { setCheckingUnique(false); console.warn(e); }
+              }} isInvalid={!!orNumberError} />
+              {orNumberError && <Box color="red.500" fontSize="sm" mt={1}>{orNumberError}</Box>}
+            </div>
+            <div style={{ flex: 1 }}>
+              <Input name="cr_number" placeholder="CR number" value={crNumber} onChange={(e) => { setCrNumber(e.target.value); setCrNumberError(''); }} onBlur={async () => {
+                const v = crNumber?.trim() || null; if (!v) return; try { setCheckingUnique(true); await api.initCsrf(); const r = await api.post('vehicles/check-unique', { cr_number: v }); setCheckingUnique(false); if (r.data?.exists?.cr_number) setCrNumberError('CR number already in use'); } catch (e) { setCheckingUnique(false); console.warn(e); }
+              }} isInvalid={!!crNumberError} />
+              {crNumberError && <Box color="red.500" fontSize="sm" mt={1}>{crNumberError}</Box>}
+            </div>
+          </Stack>
 
           <Stack direction="row" justify="flex-end">
             <Button variant="outline" onClick={onClose}>Cancel</Button>

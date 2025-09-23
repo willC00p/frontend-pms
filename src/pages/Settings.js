@@ -70,7 +70,6 @@ const Settings = () => {
     api
       .get("/account")
       .then((res) => {
-        // backend responses are wrapped as { success, data, message }
         const user = res?.data?.data || res?.data;
         if (user) {
           setName(user.name || "User");
@@ -83,8 +82,6 @@ const Settings = () => {
         showAlert("Failed to load account data", 'error');
       });
   }, []);
-
-  // no local message state; global alert handles auto-hide
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -112,7 +109,6 @@ const Settings = () => {
       const res = await api.post("/account/update-profile", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      // backend returns { success, data: user, message }
       const updatedUser = res?.data?.data || res?.data?.user || res?.data;
       setName(updatedUser.name || newName);
       setEmail(updatedUser.email || newEmail);
@@ -173,7 +169,7 @@ const Settings = () => {
     try {
       await api.initCsrf();
       const res = await api.post("/forgot-password", { email: resetEmail });
-  showAlert(res.data.message || "Password reset code sent!", 'success');
+      showAlert(res.data.message || "Password reset code sent!", 'success');
       setIsResetModalOpen(false);
       setIsVerifyModalOpen(true);
     } catch (err) {
@@ -229,61 +225,58 @@ const Settings = () => {
   return (
     <div className="settings-container">
       <h2>Account Settings</h2>
-      {/* GlobalAlert is shown at root; local MessageAlert removed */}
       <div className="settings-main">
         {/* Profile Card */}
         <section className="profile-card">
           <h3 className="profile-title">Account Information</h3>
-          <div className="profile-pic-container">
-            <label htmlFor="profilePicInput" className="profile-pic-label">
-              <div className="profile-pic-wrapper">
-                {profileLoading && (
-                  <div className="profile-pic-loading">
-                    <div className="spinner"></div>
-                  </div>
-                )}
 
-                {preview || profilePic ? (
-                  <img
-                    src={preview || `${profilePic}?t=${Date.now()}`}
-                    alt="Profile"
-                    className="profile-pic"
-                  />
-                ) : (
-                  <div className="profile-fallback">
-                    {name
-                      ?.split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .substring(0, 2)
-                      .toUpperCase()}
-                  </div>
-                )}
-              </div>
-            </label>
-
-            <input
-              id="profilePicInput"
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              style={{ display: "none" }}
-            />
-
-            <div className="profile-info">
-              <h3>{name}</h3>
-              <p>{email}</p>
-              <button
-                className="link-btn"
-                onClick={() => {
-                  setNewName(name);
-                  setNewEmail(email);
-                  setIsEditModalOpen(true);
-                }}
-              >
-                Edit Profile
-              </button>
+          <label htmlFor="profilePicInput" className="profile-pic-label">
+            <div className="profile-pic-wrapper">
+              {profileLoading && (
+                <div className="profile-pic-loading">
+                  <div className="spinner"></div>
+                </div>
+              )}
+              {preview || profilePic ? (
+                <img
+                  src={preview || `${profilePic}?t=${Date.now()}`}
+                  alt="Profile"
+                  className="profile-pic"
+                />
+              ) : (
+                <div className="profile-fallback">
+                  {name
+                    ?.split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .substring(0, 2)
+                    .toUpperCase()}
+                </div>
+              )}
             </div>
+          </label>
+
+          <input
+            id="profilePicInput"
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            style={{ display: "none" }}
+          />
+
+          <div className="profile-info">
+            <h3>{name}</h3>
+            <p>{email}</p>
+            <button
+              className="link-btn"
+              onClick={() => {
+                setNewName(name);
+                setNewEmail(email);
+                setIsEditModalOpen(true);
+              }}
+            >
+              Edit Profile
+            </button>
           </div>
         </section>
 
@@ -329,8 +322,8 @@ const Settings = () => {
           </button>
         </section>
 
-  {/* Delete account */}
-  <section className="settings-section delete-section">
+        {/* Delete account */}
+        <section className="settings-section delete-section">
           <h3>Delete Account</h3>
           <p>
             Deleting your account will permanently remove your profile and access to the system.
@@ -438,18 +431,22 @@ const Settings = () => {
             className="modal-input"
             placeholder="Enter reset code"
           />
-          <PasswordInput
-            name="resetNewPassword"
-            placeholder="New password"
-            value={resetNewPassword}
-            onChange={(e) => setResetNewPassword(e.target.value)}
-          />
-          <PasswordInput
-            name="resetConfirmPassword"
-            placeholder="Confirm new password"
-            value={resetConfirmPassword}
-            onChange={(e) => setResetConfirmPassword(e.target.value)}
-          />
+          
+          <div className="password-group">
+            <PasswordInput
+              name="resetNewPassword"
+              placeholder="New password"
+              value={resetNewPassword}
+              onChange={(e) => setResetNewPassword(e.target.value)}
+            />
+            <PasswordInput
+              name="resetConfirmPassword"
+              placeholder="Confirm new password"
+              value={resetConfirmPassword}
+              onChange={(e) => setResetConfirmPassword(e.target.value)}
+            />
+          </div>
+
           <div className="modal-actions">
             <button className="secondary-btn" onClick={() => setIsVerifyModalOpen(false)}>
               Cancel
@@ -497,4 +494,3 @@ const Settings = () => {
 };
 
 export default Settings;
-

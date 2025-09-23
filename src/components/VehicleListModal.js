@@ -60,8 +60,18 @@ export default function VehicleListModal({ user, onClose, onUpdated }) {
                       <Td>{v.plate_number}</Td>
                       <Td>{v.vehicle_type}</Td>
                       <Td>{v.vehicle_color}</Td>
-                      <Td>{v.or_path ? <Button size="sm" as="a" href={`http://localhost:8000/api/image/${v.or_path}`} target="_blank" rel="noreferrer">OR</Button> : ''}</Td>
-                      <Td>{v.cr_path ? <Button size="sm" as="a" href={`http://localhost:8000/api/image/${v.cr_path}`} target="_blank" rel="noreferrer">CR</Button> : ''}</Td>
+                      <Td>
+                        {v.or_number ? <Box fontSize="sm" mb={1}>{v.or_number}</Box> : <Box fontSize="sm" color="gray.500" mb={1}>—</Box>}
+                        {v.or_path ? (
+                          <Button size="sm" as="a" href={`http://localhost:8000/api/image/${v.or_path}`} target="_blank" rel="noreferrer">OR</Button>
+                        ) : null}
+                      </Td>
+                      <Td>
+                        {v.cr_number ? <Box fontSize="sm" mb={1}>{v.cr_number}</Box> : <Box fontSize="sm" color="gray.500" mb={1}>—</Box>}
+                        {v.cr_path ? (
+                          <Button size="sm" as="a" href={`http://localhost:8000/api/image/${v.cr_path}`} target="_blank" rel="noreferrer">CR</Button>
+                        ) : null}
+                      </Td>
                       <Td>
                         <Button size="sm" onClick={() => setEditing(v)}>Edit</Button>
                       </Td>

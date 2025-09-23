@@ -689,10 +689,142 @@ const ParkingAssignmentPage = () => {
         setFormData(prev => ({ ...prev, _selected_user_vehicles: compatibleVehicles }));
     };
 
+    // Lookup vehicle by plate number and autofill form (loads vehicle then user)
+    const handleLookupByPlate = async () => {
+        const plate = (formData._lookup_plate || '').trim();
+        if (!plate) {
+            const msg = 'Please enter a plate number to look up';
+            setFormError(msg);
+            window.showAlert && window.showAlert(msg, 'error');
+            return;
+        }
+
+        try {
+            await api.initCsrf();
+
+            // Prefer the dedicated lookup endpoint which returns a single vehicle (case-insensitive exact match)
+            let vehicle = null;
+            try {
+                const r = await api.get(`/vehicles/lookup-by-plate/${encodeURIComponent(plate)}`);
+                vehicle = r.data?.data || r.data || null;
+            } catch (err) {
+                // ignore and fall back to search below
+                console.debug('Exact lookup endpoint failed, falling back to search', err);
+            }
+
+            // If exact lookup returned nothing, try partial search endpoint but only accept exact-plate matches
+            let candidates = [];
+            if (!vehicle) {
+                const s = await api.get('/vehicles/search', { params: { q: plate } });
+                const matches = s.data?.data || s.data || [];
+                // Only accept matches that are exact plate matches (case-insensitive)
+                candidates = Array.isArray(matches) ? matches.filter(v => String(v.plate_number || '').toLowerCase() === plate.toLowerCase()) : [];
+                if (candidates.length === 0) {
+                    const msg = `No vehicle found for plate ${plate}`;
+                    setFormError(msg);
+                    window.showAlert && window.showAlert(msg, 'error');
+                    return;
+                }
+            } else {
+                candidates = [vehicle];
+            }
+
+            // At this point we have one or more exact-plate candidates
+            if (!Array.isArray(candidates) || candidates.length === 0) {
+                const msg = `No vehicle found for plate ${plate}`;
+                setFormError(msg);
+                window.showAlert && window.showAlert(msg, 'error');
+                return;
+            }
+
+            // If a slot is selected, filter by compatibility; otherwise accept all candidates
+            const spaceType = selectedSlot?.space_type || null;
+            const compatible = spaceType ? candidates.filter(v => isVehicleCompatible((v.vehicle_type || v.type || '').toLowerCase(), spaceType)) : candidates.slice();
+
+            if (compatible.length === 0) {
+                // Found vehicle(s) with that plate, but none are compatible with the selected slot
+                const msg = spaceType ? `Vehicle found but not compatible with this slot type (${spaceType}).` : `Vehicle found but slot compatibility could not be determined.`;
+                setFormError(msg);
+                window.showAlert && window.showAlert(msg, 'error');
+                return;
+            }
+
+            // If multiple compatible vehicles, populate the picklist so admin can choose
+            let chosenVehicle = null;
+            if (compatible.length === 1) {
+                chosenVehicle = compatible[0];
+            } else {
+                // populate picklist and let the user pick; show info alert
+                setFormData(prev => ({ ...prev, _selected_user_vehicles: compatible }));
+                const msg = `Multiple vehicles found for plate ${plate}. Please choose the correct one from the vehicle selector.`;
+                window.showAlert && window.showAlert(msg, 'info');
+                return;
+            }
+
+            // Determine user info: vehicle may include user or vehicle-level userDetails
+            let user = vehicle.user || null;
+
+            // Try to extract contact from vehicle.userDetails, vehicle.user (flattened), or nested userDetail
+            const contactFromVehicleUserDetails = vehicle.userDetails?.contact_number || vehicle.userDetails?.contact || null;
+            const contactFromUserDirect = vehicle.user?.contact_number || vehicle.user?.contact || null;
+            const contactFromUserNested = vehicle.user?.userDetail?.contact_number || vehicle.user?.userDetail?.contact || null;
+
+            // If user not present but vehicle has user_id, try fetching the user resource
+            if (!user && vehicle.user_id) {
+                try {
+                    const ures = await api.get(`/users/${vehicle.user_id}`);
+                    user = ures.data?.data || ures.data || null;
+                } catch (err) {
+                    console.debug('Failed to fetch user for vehicle lookup', err);
+                }
+            }
+
+            // If still no contact, try the users-with-vehicles endpoint (returns contact_number) as fallback
+            let contactFallback = '';
+            if ((!contactFromVehicleUserDetails && !contactFromUserDirect && !contactFromUserNested) && vehicle.user_id) {
+                try {
+                    const all = await api.get('/users-with-vehicles');
+                    const raw = all.data?.data || all.data || [];
+                    const found = (Array.isArray(raw) ? raw : Object.values(raw || {})).find(u => String(u.id) === String(vehicle.user_id));
+                    if (found) contactFallback = found.contact_number || found.contact || '';
+                } catch (err) {
+                    console.debug('Failed to fetch users-with-vehicles for contact fallback', err);
+                }
+            }
+
+            // Build sensible name/contact fallbacks
+            const resolvedName = user?.name || vehicle.userDetails?.firstname || vehicle.userDetails?.name || '';
+            const resolvedContact = user?.contact_number || user?.contact || contactFromVehicleUserDetails || contactFromUserDirect || contactFromUserNested || contactFallback || '';
+
+            // Populate form fields from user and vehicle and clear any previous error
+            setFormError(null);
+            setFormData(prev => ({
+                ...prev,
+                _lookup_plate: plate,
+                name: resolvedName || prev.name || '',
+                contact: resolvedContact || prev.contact || '',
+                assignee_type: (user?.role || '').toLowerCase() === 'faculty' ? 'faculty' : prev.assignee_type || 'guest',
+                faculty_position: user?.faculty_position || prev.faculty_position || '',
+                _selected_user_vehicles: user && Array.isArray(user.vehicles) ? user.vehicles : (user ? [] : prev._selected_user_vehicles),
+                vehicle_plate: vehicle.plate_number || vehicle.vehicle_plate || prev.vehicle_plate || '',
+                vehicle_type: vehicle.vehicle_type || vehicle.type || prev.vehicle_type || '',
+                vehicle_color: vehicle.vehicle_color || vehicle.color || prev.vehicle_color || ''
+            }));
+
+            window.showAlert && window.showAlert(`Loaded data for plate ${vehicle.plate_number || plate}`, 'success');
+        } catch (err) {
+            console.error('Plate lookup failed', err);
+            const msg = 'Failed to lookup vehicle by plate';
+            setFormError(msg);
+            window.showAlert && window.showAlert(msg, 'error');
+        }
+    };
+
     const isVehicleCompatible = (vehicleType = '', spaceType = '') => {
         if (!spaceType) return true; // unknown space type -> allow
         const vt = (vehicleType || '').toLowerCase();
-        switch (spaceType) {
+        const st = String(spaceType || '').toLowerCase();
+        switch (st) {
             case 'compact':
                 return vt === 'motorcycle' || vt === 'bicycle';
             case 'standard':
@@ -1469,14 +1601,21 @@ const ParkingAssignmentPage = () => {
                         <div className={styles.formGroup}>
                             <label>Vehicle Type</label>
                             {/* Autoload user and vehicles */}
-                            <div style={{ marginBottom: 8 }}>
-                                <label>Load User (optional)</label>
-                                <select name="_user_select" onChange={(e) => handleSelectUser(e.target.value)}>
-                                    <option value="">-- Select user to autofill --</option>
-                                    {allUsers.filter(u => { const r = (u.role||'').toLowerCase(); return r !== 'admin' && r !== 'guard' && r !== 'student'; }).map(u => (
-                                        <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-                                    ))}
-                                </select>
+                            <div style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label>Lookup by Plate Number </label>
+                                    <input
+                                        type="text"
+                                        name="_lookup_plate"
+                                        value={formData._lookup_plate || ''}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, _lookup_plate: e.target.value }))}
+                                        placeholder="Enter plate number and click Lookup"
+                                    />
+                                </div>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                    <button type="button" onClick={handleLookupByPlate} className={styles.refreshButton}>Lookup</button>
+                                    <button type="button" onClick={() => { setFormData(prev => ({ ...prev, _lookup_plate: '', vehicle_plate: '', vehicle_type: '', vehicle_color: '' })); window.showAlert && window.showAlert('Plate lookup cleared', 'info'); }} className={styles.refreshButton}>Clear</button>
+                                </div>
                             </div>
 
                             {/* If a user was selected and they have multiple vehicles, show a vehicle selector */}
@@ -1630,5 +1769,3 @@ const ParkingAssignmentPage = () => {
 };
 
 export default ParkingAssignmentPage;
-
-
