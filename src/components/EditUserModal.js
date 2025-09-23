@@ -46,6 +46,30 @@ export default function EditUserModal({ user, onClose, onSaved }) {
     if (!user) return;
     setLoading(true);
     try {
+      // Validate contact and email uniqueness before submitting (exclude current user)
+      try {
+        const payloadCheck = { exclude_user_id: user.id };
+        if (form.contact_number) payloadCheck.contact_number = form.contact_number;
+        if (form.email) payloadCheck.email = form.email;
+        if (Object.keys(payloadCheck).length > 1) {
+          await api.initCsrf();
+          const check = await api.post('vehicles/check-unique', payloadCheck);
+          const exists = check.data?.exists || {};
+          if (exists.contact_number) {
+            setMessage('Contact number already in use by another account');
+            setLoading(false);
+            return;
+          }
+          if (exists.email) {
+            setMessage('Email already in use by another account');
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Uniqueness check failed', e);
+        // continue - backend will validate as a fallback
+      }
       const payload = {
         firstname: form.firstname,
         lastname: form.lastname,

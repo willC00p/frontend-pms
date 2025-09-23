@@ -658,13 +658,26 @@ const ParkingAssignmentPage = () => {
     const handleSelectUser = (userId) => {
         const u = allUsers.find(x => String(x.id) === String(userId));
         if (!u) return;
+        // Do not autoload student accounts — check role on user and related userDetail
+        const role = (u.role || u.userDetail?.role || '').toLowerCase();
+        const udPosition = (u.userDetail?.position || '').toLowerCase();
+        const udHasStudentNo = Boolean(u.userDetail?.student_no || u.userDetail?.studentNo || u.userDetail?.student_no === 0);
+        const isStudentUser = role === 'student' || udPosition.includes('student') || udHasStudentNo;
+        if (isStudentUser) {
+            const msg = 'Selected user is a student — student accounts are not auto-loaded for parking assignments.';
+            console.debug('Autoload blocked (select user):', { userId: u.id, role, udPosition, udHasStudentNo });
+            setFormError(msg);
+            window.showAlert && window.showAlert(msg, 'error');
+            return;
+        }
         // populate fields from user
         setFormData(prev => ({
             ...prev,
             name: u.name || '',
             contact: u.contact_number || u.contact || '',
-            assignee_type: (u.role || '').toLowerCase() === 'faculty' ? 'faculty' : 'guest',
-            faculty_position: u.faculty_position || ''
+            assignee_type: role === 'faculty' ? 'faculty' : 'guest',
+            // prefer faculty_position stored in related userDetail when available
+            faculty_position: (u.userDetail && u.userDetail.faculty_position) || u.faculty_position || ''
         }));
         // vehicles are now embedded on the user object
         const vs = Array.isArray(u.vehicles) ? u.vehicles : [];
@@ -701,6 +714,41 @@ const ParkingAssignmentPage = () => {
 
         try {
             await api.initCsrf();
+
+            // If the current assignee type is guest, prefer searching recent parking assignments
+            // and reuse guest_name/guest_contact and vehicle info from past records. This
+            // avoids forcing a guest to exist in the users/vehicles tables.
+            if ((formData.assignee_type || 'guest') === 'guest') {
+                try {
+                    const ares = await api.get('/parking-assignments');
+                    const allAssignments = ares.data || ares.data?.data || [];
+                    const matches = Array.isArray(allAssignments)
+                        ? allAssignments.filter(a => String(a.vehicle_plate || '').toLowerCase() === plate.toLowerCase())
+                        : [];
+                    if (matches.length > 0) {
+                        // choose the most recent by start_time or created_at
+                        matches.sort((a, b) => {
+                            const ta = a.start_time || a.updated_at || a.created_at || 0;
+                            const tb = b.start_time || b.updated_at || b.created_at || 0;
+                            return new Date(tb) - new Date(ta);
+                        });
+                        const recent = matches[0];
+                        setFormData(prev => ({
+                            ...prev,
+                            _lookup_plate: plate,
+                            name: recent.guest_name || prev.name || '',
+                            contact: recent.guest_contact || prev.contact || '',
+                            vehicle_plate: recent.vehicle_plate || prev.vehicle_plate || '',
+                            vehicle_type: recent.vehicle_type || prev.vehicle_type || '',
+                            vehicle_color: recent.vehicle_color || prev.vehicle_color || ''
+                        }));
+                        window.showAlert && window.showAlert(`Loaded guest data from previous assignment for plate ${plate}`, 'success');
+                        return;
+                    }
+                } catch (err) {
+                    console.debug('Failed to search parking_assignments for guest lookup, falling back to vehicle lookup', err);
+                }
+            }
 
             // Prefer the dedicated lookup endpoint which returns a single vehicle (case-insensitive exact match)
             let vehicle = null;
@@ -761,18 +809,21 @@ const ParkingAssignmentPage = () => {
                 return;
             }
 
+            // Use the selected vehicle (chosenVehicle) when available, otherwise fall back to the `vehicle` variable
+            const selVehicle = chosenVehicle || vehicle;
+
             // Determine user info: vehicle may include user or vehicle-level userDetails
-            let user = vehicle.user || null;
+            let user = selVehicle?.user || null;
 
             // Try to extract contact from vehicle.userDetails, vehicle.user (flattened), or nested userDetail
-            const contactFromVehicleUserDetails = vehicle.userDetails?.contact_number || vehicle.userDetails?.contact || null;
-            const contactFromUserDirect = vehicle.user?.contact_number || vehicle.user?.contact || null;
-            const contactFromUserNested = vehicle.user?.userDetail?.contact_number || vehicle.user?.userDetail?.contact || null;
+            const contactFromVehicleUserDetails = selVehicle?.userDetails?.contact_number || selVehicle?.userDetails?.contact || null;
+            const contactFromUserDirect = selVehicle?.user?.contact_number || selVehicle?.user?.contact || null;
+            const contactFromUserNested = selVehicle?.user?.userDetail?.contact_number || selVehicle?.user?.userDetail?.contact || null;
 
             // If user not present but vehicle has user_id, try fetching the user resource
-            if (!user && vehicle.user_id) {
+            if (!user && selVehicle?.user_id) {
                 try {
-                    const ures = await api.get(`/users/${vehicle.user_id}`);
+                    const ures = await api.get(`/users/${selVehicle.user_id}`);
                     user = ures.data?.data || ures.data || null;
                 } catch (err) {
                     console.debug('Failed to fetch user for vehicle lookup', err);
@@ -781,11 +832,11 @@ const ParkingAssignmentPage = () => {
 
             // If still no contact, try the users-with-vehicles endpoint (returns contact_number) as fallback
             let contactFallback = '';
-            if ((!contactFromVehicleUserDetails && !contactFromUserDirect && !contactFromUserNested) && vehicle.user_id) {
+            if ((!contactFromVehicleUserDetails && !contactFromUserDirect && !contactFromUserNested) && selVehicle?.user_id) {
                 try {
                     const all = await api.get('/users-with-vehicles');
                     const raw = all.data?.data || all.data || [];
-                    const found = (Array.isArray(raw) ? raw : Object.values(raw || {})).find(u => String(u.id) === String(vehicle.user_id));
+                    const found = (Array.isArray(raw) ? raw : Object.values(raw || {})).find(u => String(u.id) === String(selVehicle.user_id));
                     if (found) contactFallback = found.contact_number || found.contact || '';
                 } catch (err) {
                     console.debug('Failed to fetch users-with-vehicles for contact fallback', err);
@@ -793,8 +844,33 @@ const ParkingAssignmentPage = () => {
             }
 
             // Build sensible name/contact fallbacks
-            const resolvedName = user?.name || vehicle.userDetails?.firstname || vehicle.userDetails?.name || '';
+            const resolvedName = user?.name || selVehicle?.userDetails?.firstname || selVehicle?.userDetails?.name || '';
             const resolvedContact = user?.contact_number || user?.contact || contactFromVehicleUserDetails || contactFromUserDirect || contactFromUserNested || contactFallback || '';
+
+            // If the resolved user/vehicle owner is a student, do not populate the form from this vehicle.
+            // Check common locations where role might be stored (user.role, user.userDetail.role, vehicle.userDetails.role, etc.)
+            const ownerRoleCandidates = [
+                user?.role,
+                user?.userDetail?.role,
+                selVehicle?.userDetails?.role,
+                selVehicle?.user_details?.role,
+                selVehicle?.user_detail?.role,
+                selVehicle?.owner_role
+            ].filter(Boolean).map(r => String(r).toLowerCase());
+
+            // Also check userDetail.position and student_no as a quick student indicator
+            const ownerPosition = (user?.userDetail?.position || selVehicle?.userDetails?.position || selVehicle?.user_details?.position || '').toLowerCase();
+            const ownerHasStudentNo = Boolean(user?.userDetail?.student_no || user?.userDetail?.studentNo || selVehicle?.userDetails?.student_no || selVehicle?.user_details?.student_no);
+
+            const isStudentOwner = ownerRoleCandidates.includes('student') || ownerPosition.includes('student') || ownerHasStudentNo;
+
+            if (isStudentOwner) {
+                const msg = `Vehicle with plate ${plate} belongs to a student account and cannot be auto-loaded.`;
+                console.debug('Autoload blocked (plate lookup):', { plate, ownerRoleCandidates, ownerPosition, ownerHasStudentNo });
+                setFormError(msg);
+                window.showAlert && window.showAlert(msg, 'error');
+                return;
+            }
 
             // Populate form fields from user and vehicle and clear any previous error
             setFormError(null);
@@ -804,11 +880,12 @@ const ParkingAssignmentPage = () => {
                 name: resolvedName || prev.name || '',
                 contact: resolvedContact || prev.contact || '',
                 assignee_type: (user?.role || '').toLowerCase() === 'faculty' ? 'faculty' : prev.assignee_type || 'guest',
-                faculty_position: user?.faculty_position || prev.faculty_position || '',
+                // prefer faculty_position from related userDetail when available
+                faculty_position: user?.userDetail?.faculty_position || user?.faculty_position || prev.faculty_position || '',
                 _selected_user_vehicles: user && Array.isArray(user.vehicles) ? user.vehicles : (user ? [] : prev._selected_user_vehicles),
-                vehicle_plate: vehicle.plate_number || vehicle.vehicle_plate || prev.vehicle_plate || '',
-                vehicle_type: vehicle.vehicle_type || vehicle.type || prev.vehicle_type || '',
-                vehicle_color: vehicle.vehicle_color || vehicle.color || prev.vehicle_color || ''
+                vehicle_plate: selVehicle?.plate_number || selVehicle?.vehicle_plate || prev.vehicle_plate || '',
+                vehicle_type: selVehicle?.vehicle_type || selVehicle?.type || prev.vehicle_type || '',
+                vehicle_color: selVehicle?.vehicle_color || selVehicle?.color || prev.vehicle_color || ''
             }));
 
             window.showAlert && window.showAlert(`Loaded data for plate ${vehicle.plate_number || plate}`, 'success');

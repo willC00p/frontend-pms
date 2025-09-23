@@ -6,6 +6,7 @@ export default function VehicleModal({ user, vehicle, onClose, onSuccess }) {
   const [form, setForm] = useState({ plate_number: user?.plate_number || '', vehicle_color: '', vehicle_type: 'car', brand: '', model: '' });
   const [orFile, setOrFile] = useState(null);
   const [crFile, setCrFile] = useState(null);
+  const [replaceDocs, setReplaceDocs] = useState(false);
   const [orNumber, setOrNumber] = useState('');
   const [crNumber, setCrNumber] = useState('');
   const [orNumberError, setOrNumberError] = useState('');
@@ -35,6 +36,7 @@ export default function VehicleModal({ user, vehicle, onClose, onSuccess }) {
     setOrFile(null);
     setCrFile(null);
     setMessage('');
+    setReplaceDocs(false);
   }, [vehicle, user]);
 
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -49,12 +51,24 @@ export default function VehicleModal({ user, vehicle, onClose, onSuccess }) {
       if (orVal || crVal) {
         setCheckingUnique(true);
         await api.initCsrf();
-        const resp = await api.post('vehicles/check-unique', { or_number: orVal, cr_number: crVal });
+        const resp = await api.post('vehicles/check-unique', { or_number: orVal, cr_number: crVal, exclude_vehicle_id: vehicle?.id || null });
         setCheckingUnique(false);
         const exists = resp.data?.exists || {};
         if (exists.or_number) { setOrNumberError('OR number already in use'); setSaving(false); return; }
         if (exists.cr_number) { setCrNumberError('CR number already in use'); setSaving(false); return; }
       }
+    // Validate plate uniqueness before submitting
+    try {
+      await api.initCsrf();
+      const plateResp = await api.post('vehicles/check-unique', { plate_number: form.plate_number, exclude_vehicle_id: vehicle?.id || null });
+      if (plateResp.data?.exists?.plate_number) {
+        setMessage('Plate number already in use');
+        setSaving(false);
+        return;
+      }
+    } catch (e) {
+      console.warn('Plate uniqueness check failed', e);
+    }
     } catch (e) {
       setCheckingUnique(false);
       // proceed but show warning
@@ -103,7 +117,18 @@ export default function VehicleModal({ user, vehicle, onClose, onSuccess }) {
       <Heading size="sm" mb={3}>{vehicle ? `Edit vehicle for ${user?.name}` : `Add vehicle for ${user?.name}`}</Heading>
       <form onSubmit={submit}>
         <Stack spacing={3}>
-          <Input name="plate_number" placeholder="Plate number" value={form.plate_number} onChange={onChange} required />
+          <Input name="plate_number" placeholder="Plate number" value={form.plate_number} onChange={onChange} required onBlur={async () => {
+            const v = (form.plate_number || '').trim();
+            if (!v) return;
+            try {
+              setCheckingUnique(true);
+              await api.initCsrf();
+              const r = await api.post('vehicles/check-unique', { plate_number: v, exclude_vehicle_id: vehicle?.id || null });
+              setCheckingUnique(false);
+              if (r.data?.exists?.plate_number) setMessage('Plate number already in use');
+              else setMessage('');
+            } catch (e) { setCheckingUnique(false); console.warn(e); }
+          }} />
           <Input name="vehicle_color" placeholder="Color" value={form.vehicle_color} onChange={onChange} />
 
           <Box>
@@ -120,11 +145,25 @@ export default function VehicleModal({ user, vehicle, onClose, onSuccess }) {
 
           <Box>
             <FormLabel>Vehicle OR (PDF)</FormLabel>
-            <Input type="file" accept="application/pdf" onChange={(e) => setOrFile(e.target.files[0])} />
+            {vehicle && vehicle.or_path && !replaceDocs ? (
+              <Box mb={2}>
+                <a href={`http://localhost:8000/api/image/${vehicle.or_path}`} target="_blank" rel="noreferrer">View existing OR</a>
+                <Button size="sm" ml={3} onClick={() => setReplaceDocs(true)}>Replace</Button>
+              </Box>
+            ) : (
+              <Input type="file" accept="application/pdf" onChange={(e) => setOrFile(e.target.files[0])} />
+            )}
           </Box>
           <Box>
             <FormLabel>Vehicle CR (PDF)</FormLabel>
-            <Input type="file" accept="application/pdf" onChange={(e) => setCrFile(e.target.files[0])} />
+            {vehicle && vehicle.cr_path && !replaceDocs ? (
+              <Box mb={2}>
+                <a href={`http://localhost:8000/api/image/${vehicle.cr_path}`} target="_blank" rel="noreferrer">View existing CR</a>
+                <Button size="sm" ml={3} onClick={() => setReplaceDocs(true)}>Replace</Button>
+              </Box>
+            ) : (
+              <Input type="file" accept="application/pdf" onChange={(e) => setCrFile(e.target.files[0])} />
+            )}
           </Box>
 
           <Stack direction={{ base: 'column', md: 'row' }} spacing={3}>
